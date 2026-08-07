@@ -13,6 +13,7 @@ interface HeaderProps {
   viewMode: ViewMode;
   onSetViewMode: (mode: ViewMode) => void;
   isAdminSetupComplete: boolean;
+  totalResultsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   viewMode,
   onSetViewMode,
   isAdminSetupComplete,
+  totalResultsCount,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -115,9 +117,23 @@ export const Header: React.FC<HeaderProps> = ({
                 placeholder="SEARCH..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="bg-transparent border-b border-[#D4AF37]/60 text-[11px] px-2 py-1 text-white focus:outline-none focus:border-[#D4AF37] w-28 sm:w-36 placeholder:text-[#D4AF37]/50 tracking-wider uppercase"
+                className={`bg-transparent border-b text-[11px] pl-2 pr-6 py-1 text-white focus:outline-none w-28 sm:w-40 placeholder:text-[#D4AF37]/50 tracking-wider uppercase transition-colors ${
+                  searchQuery && totalResultsCount === 0 
+                    ? 'border-rose-400 text-rose-200 focus:border-rose-300' 
+                    : 'border-[#D4AF37]/60 focus:border-[#D4AF37]'
+                }`}
               />
-              <Search className="w-3.5 h-3.5 absolute right-1 top-2 text-[#D4AF37]" />
+              {searchQuery ? (
+                <button
+                  onClick={() => onSearchChange('')}
+                  className="absolute right-1 top-1.5 text-[#D4AF37] hover:text-white p-0.5"
+                  title="Clear Search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <Search className="w-3.5 h-3.5 absolute right-1 top-2 text-[#D4AF37]" />
+              )}
             </div>
 
             {/* Wishlist Button */}
@@ -170,9 +186,23 @@ export const Header: React.FC<HeaderProps> = ({
               placeholder="SEARCH CATALOG..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-black/20 border-b border-[#D4AF37]/60 text-white placeholder:text-[#D4AF37]/50 text-xs px-3 py-1.5 focus:outline-none uppercase tracking-wider"
+              className={`w-full bg-black/20 border-b text-white placeholder:text-[#D4AF37]/50 text-xs pl-3 pr-8 py-1.5 focus:outline-none uppercase tracking-wider transition-colors ${
+                searchQuery && totalResultsCount === 0
+                  ? 'border-rose-400 text-rose-200'
+                  : 'border-[#D4AF37]/60 focus:border-[#D4AF37]'
+              }`}
             />
-            <Search className="w-3.5 h-3.5 absolute right-2 top-2 text-[#D4AF37]" />
+            {searchQuery ? (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute right-2 top-1.5 text-[#D4AF37] hover:text-white p-0.5"
+                title="Clear Search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : (
+              <Search className="w-3.5 h-3.5 absolute right-2 top-2 text-[#D4AF37]" />
+            )}
           </div>
         </div>
 

@@ -8,7 +8,7 @@ import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
 import { CategoryType, Product, ViewMode } from './types';
 import { ProductStorage, WishlistStorage, AdminStorage } from './services/storage';
-import { Sparkles, Heart, Filter, MessageCircle, ArrowRight, ShieldCheck, Check } from 'lucide-react';
+import { Sparkles, Heart, Filter, MessageCircle, ArrowRight, ShieldCheck, Check, SearchX, AlertTriangle, RotateCcw, Search } from 'lucide-react';
 import { CONTACT_NUMBERS } from './utils/whatsapp';
 
 export default function App() {
@@ -100,6 +100,7 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         isAdminSetupComplete={isAdminSetupComplete}
+        totalResultsCount={filteredProducts.length}
       />
 
       {/* MAIN CONTENT AREA */}
@@ -161,11 +162,30 @@ export default function App() {
 
           {/* Active Search Notification */}
           {searchQuery && (
-            <div className="mb-6 bg-[#4A0E17]/10 p-3 rounded-xl border border-[#D4AF37]/30 flex items-center justify-between text-xs text-[#32080F]">
-              <span>Showing results for: <strong>"{searchQuery}"</strong></span>
+            <div className={`mb-6 p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-all shadow-sm ${
+              filteredProducts.length === 0
+                ? 'bg-rose-50 border-rose-300 text-rose-900'
+                : 'bg-[#4A0E17]/10 border-[#D4AF37]/30 text-[#32080F]'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Search className={`w-4 h-4 shrink-0 ${filteredProducts.length === 0 ? 'text-rose-600' : 'text-[#4A0E17]'}`} />
+                <span>
+                  Search results for: <strong className="underline font-bold">"{searchQuery}"</strong>
+                </span>
+                {filteredProducts.length === 0 ? (
+                  <span className="bg-rose-700 text-white text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ml-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-rose-200" />
+                    Invalid Search
+                  </span>
+                ) : (
+                  <span className="bg-[#4A0E17] text-[#D4AF37] text-[10px] font-bold px-2 py-0.5 rounded-full ml-1">
+                    {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} found
+                  </span>
+                )}
+              </div>
               <button 
                 onClick={() => setSearchQuery('')}
-                className="text-[#4A0E17] font-bold underline hover:text-[#D4AF37]"
+                className="text-[#4A0E17] font-bold underline hover:text-[#D4AF37] self-end sm:self-auto flex items-center gap-1 text-xs"
               >
                 Clear Search
               </button>
@@ -174,28 +194,101 @@ export default function App() {
 
           {/* PRODUCTS GRID */}
           {filteredProducts.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-[#D4AF37]/40 p-8 space-y-4 max-w-lg mx-auto">
-              <div className="w-16 h-16 rounded-full bg-[#FAF6F0] text-[#D4AF37] flex items-center justify-center mx-auto border border-[#D4AF37]">
-                <Heart className="w-8 h-8" />
-              </div>
-              <h3 className="font-cinzel text-lg font-bold text-[#32080F]">
-                {viewMode === 'wishlist' ? 'Your Wishlist is Empty' : 'No Matching Products Found'}
-              </h3>
-              <p className="text-xs text-gray-600">
-                {viewMode === 'wishlist'
-                  ? 'Explore our traditional Kerala Sarees, Co-ord sets, and Churidar collections to save items here!'
-                  : 'Try selecting a different category or clearing your search filter.'}
-              </p>
-              <button
-                onClick={() => {
-                  setViewMode('catalog');
-                  setActiveCategory('All');
-                  setSearchQuery('');
-                }}
-                className="px-6 py-2.5 rounded-full gold-gradient-btn text-xs font-bold uppercase tracking-wider"
-              >
-                Browse All Products
-              </button>
+            <div className={`text-center py-12 px-6 sm:px-8 rounded-3xl border p-8 space-y-4 max-w-lg mx-auto shadow-md transition-all ${
+              searchQuery ? 'bg-rose-50/40 border-2 border-rose-200' : 'bg-white border-dashed border-[#D4AF37]/40'
+            }`}>
+              
+              {searchQuery ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center mx-auto border-2 border-rose-300 shadow-inner">
+                    <SearchX className="w-8 h-8 text-rose-700" />
+                  </div>
+
+                  <div className="inline-block bg-rose-800 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-rose-400 shadow-sm">
+                    ⚠️ Invalid Search Query
+                  </div>
+
+                  <h3 style={{ fontFamily: 'Georgia, serif' }} className="text-xl sm:text-2xl italic font-bold text-rose-950">
+                    No Products Found for "{searchQuery}"
+                  </h3>
+
+                  <p className="text-xs text-rose-900 leading-relaxed max-w-md mx-auto font-medium">
+                    നിങ്ങൾ തിരഞ്ഞ <strong>"{searchQuery}"</strong> എന്ന വാക്കിന് യോജിച്ച ഉൽപ്പന്നങ്ങളൊന്നും കാറ്റലോഗിൽ കണ്ടെത്തിയില്ല. ദയവായി അക്ഷരത്തെറ്റുകൾ പരിശോധിക്കുക അല്ലെങ്കിൽ താഴെ നൽകിയിരിക്കുന്ന കീവേഡുകൾ ഉപയോഗിക്കുക.
+                  </p>
+
+                  <div className="pt-2 border-t border-rose-200/60 text-left">
+                    <p className="text-[11px] font-bold text-gray-700 mb-2 text-center uppercase tracking-wider">
+                      Popular Search Suggestions:
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {['Saree', 'Co-ord', 'Churidar', 'Cotton', 'Silk', 'Kanchipuram'].map((suggest) => (
+                        <button
+                          key={suggest}
+                          onClick={() => setSearchQuery(suggest)}
+                          className="px-2.5 py-1 bg-white hover:bg-[#4A0E17] hover:text-[#D4AF37] text-gray-800 text-[11px] font-semibold rounded-md border border-gray-300 transition-all shadow-xs"
+                        >
+                          {suggest}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3">
+                    <button
+                      onClick={() => {
+                        setViewMode('catalog');
+                        setActiveCategory('All');
+                        setSearchQuery('');
+                      }}
+                      className="px-6 py-2.5 rounded-xl bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#32080F] text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center gap-2 mx-auto"
+                    >
+                      <RotateCcw className="w-4 h-4 text-[#D4AF37]" />
+                      <span>Clear Search &amp; Show All Products</span>
+                    </button>
+                  </div>
+                </>
+              ) : viewMode === 'wishlist' ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-[#FAF6F0] text-[#D4AF37] flex items-center justify-center mx-auto border border-[#D4AF37]">
+                    <Heart className="w-8 h-8" />
+                  </div>
+                  <h3 className="font-cinzel text-lg font-bold text-[#32080F]">Your Wishlist is Empty</h3>
+                  <p className="text-xs text-gray-600">
+                    Explore our traditional Kerala Sarees, Co-ord sets, and Churidar collections to save items here!
+                  </p>
+                  <button
+                    onClick={() => {
+                      setViewMode('catalog');
+                      setActiveCategory('All');
+                      setSearchQuery('');
+                    }}
+                    className="px-6 py-2.5 rounded-full gold-gradient-btn text-xs font-bold uppercase tracking-wider"
+                  >
+                    Browse All Products
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-[#FAF6F0] text-[#D4AF37] flex items-center justify-center mx-auto border border-[#D4AF37]">
+                    <Filter className="w-8 h-8" />
+                  </div>
+                  <h3 className="font-cinzel text-lg font-bold text-[#32080F]">No Products in this Category</h3>
+                  <p className="text-xs text-gray-600">
+                    Try selecting a different category or view all products.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setViewMode('catalog');
+                      setActiveCategory('All');
+                      setSearchQuery('');
+                    }}
+                    className="px-6 py-2.5 rounded-full gold-gradient-btn text-xs font-bold uppercase tracking-wider"
+                  >
+                    View All Categories
+                  </button>
+                </>
+              )}
+
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
