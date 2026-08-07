@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-maroon-dark: #32080F;
+    --color-maroon-main: #4A0E17;
+    --color-maroon-light: #6A1824;
+    --color-gold-dark: #AA820A;
+    --color-gold-main: #D4AF37;
+    --color-gold-light: #F3E5AB;
+    --color-cream-bg: #FAF6F0;
+    --color-cream-card: #FFFDF9;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #FDFCF8;
+    color: #1A1A1A;
+  }
+
+  h1, h2, h3, .font-cinzel {
+    font-family: 'Cinzel', serif;
+  }
+
+  .font-playfair {
+    font-family: 'Playfair Display', serif;
+  }
+}
+
+/* Custom Gold & Maroon Accessories */
+.bg-maroon-dark { background-color: #32080F; }
+.bg-maroon-main { background-color: #4A0E17; }
+.bg-maroon-light { background-color: #6A1824; }
+
+.text-maroon-main { color: #4A0E17; }
+.text-gold-main { color: #D4AF37; }
+.text-gold-light { color: #F3E5AB; }
+
+.border-gold-main { border-color: #D4AF37; }
+.border-gold-light { border-color: #F3E5AB; }
+.border-maroon-main { border-color: #4A0E17; }
+
+/* Metallic Gold Gradient Utility */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 25%, #B38728 50%, #FBF5B7 75%, #AA771C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-gradient-bg {
+  background: linear-gradient(135deg, #BF953F 0%, #E6C687 30%, #D4AF37 50%, #F3E5AB 75%, #AA771C 100%);
+}
+
+.gold-gradient-btn {
+  background: linear-gradient(135deg, #D4AF37 0%, #F5E6B3 50%, #C59B27 100%);
+  color: #32080F;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.gold-gradient-btn:hover {
+  background: linear-gradient(135deg, #E5C158 0%, #FFF3CC 50%, #D4AF37 100%);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+}
+
+.gold-border-frame {
+  border: 1px solid #D4AF37;
+  box-shadow: inset 0 0 0 3px #4A0E17, inset 0 0 0 4px #D4AF37;
+}
+
+/* Elegant Maroon Royal Pattern Texture */
+.maroon-royal-bg {
+  background-color: #4A0E17;
+  background-image: radial-gradient(#D4AF37 0.5px, transparent 0.5px), radial-gradient(#D4AF37 0.5px, #4A0E17 0.5px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+  background-opacity: 0.1;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF6F0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4A0E17;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
+}
