@@ -8,82 +8,57 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
   return (
-    <div className="relative bg-[#1A1A1A] overflow-hidden border-b-2 border-[#D4AF37]/30 text-white py-12 md:py-16">
+    <div className="relative bg-[#FAF7F2] overflow-hidden border-b border-[#E6DEC8] py-10 md:py-14 shadow-xs">
       
-      {/* Royal Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#4A0E17]/95 via-[#4A0E17]/70 to-transparent z-10 pointer-events-none"></div>
+      {/* Subtle Warm Glow Accents */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#FFFDF9] via-[#FAF7F2] to-[#F5EFE6] pointer-events-none"></div>
 
-      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 relative z-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
-          {/* Hero Left Content */}
-          <div className="lg:col-span-8 space-y-4">
+      <div className="max-w-5xl mx-auto px-6 sm:px-10 lg:px-12 relative z-20 text-center">
+        <div className="space-y-4 max-w-3xl mx-auto">
 
-            <h2 style={{ fontFamily: 'Georgia, serif' }} className="text-3xl sm:text-4xl md:text-5xl text-white leading-tight font-normal">
-              Traditional Kerala Sarees &amp; Designer Wear
-            </h2>
+          {/* Heading */}
+          <h2 style={{ fontFamily: 'Georgia, serif' }} className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-[#4A0E17] leading-tight font-medium tracking-tight">
+            Traditional Kerala Sarees &amp; Designer Wear
+          </h2>
 
-            <p className="text-white/80 text-xs sm:text-sm font-light leading-relaxed max-w-xl">
-              Exquisite Kasavu craftsmanship meets contemporary fusion aesthetics for the modern woman. Discover handcrafted Tissue Sarees, Kanchi Cotton weaves, Churidar sets, and premium Co-ords with <strong>All Kerala Free Shipping</strong>.
-            </p>
+          {/* Subtitle / Description */}
+          <p className="text-[#5C5248] text-xs sm:text-sm font-normal leading-relaxed max-w-2xl mx-auto">
+            Exquisite Kasavu craftsmanship meets contemporary fusion aesthetics for the modern woman. Discover handcrafted Tissue Sarees, Kanchi Cotton weaves, Churidar sets, and premium Co-ords with <strong className="text-[#4A0E17] font-semibold">All Kerala Free Shipping</strong>.
+          </p>
 
-            {/* Action Buttons */}
-            <div className="pt-4 flex flex-wrap items-center gap-4">
-              <button
-                onClick={onShopClick}
-                className="border border-[#D4AF37] text-[#D4AF37] px-8 py-3 text-xs uppercase tracking-widest font-bold hover:bg-[#D4AF37] hover:text-[#4A0E17] transition-all shadow-md"
-              >
-                Explore Collection
-              </button>
+          {/* Action Buttons */}
+          <div className="pt-3 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <button
+              onClick={onShopClick}
+              className="bg-[#4A0E17] text-[#D4AF37] hover:bg-[#32080F] hover:text-white px-7 sm:px-8 py-3 text-xs uppercase tracking-widest font-bold transition-all shadow-md rounded-xs border border-[#4A0E17]"
+            >
+              Explore Collection
+            </button>
 
-              <a
-                href={`https://wa.me/${CONTACT_NUMBERS[0].value}?text=${encodeURIComponent("Hello Yaarika Collections, I would like to explore your Saree & Co-ord collection.")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-[#25D366] text-white px-6 py-3 text-xs uppercase tracking-widest font-bold hover:bg-emerald-600 transition-all flex items-center gap-2 rounded-sm"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Order on WhatsApp</span>
-              </a>
-            </div>
-
-            {/* Quick Badges */}
-            <div className="pt-6 grid grid-cols-3 gap-4 max-w-lg border-t border-[#D4AF37]/30 text-left">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">All Kerala</p>
-                <p className="text-[9px] uppercase text-white/70">Free Shipping</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">100% Authentic</p>
-                <p className="text-[9px] uppercase text-white/70">Handloom Quality</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">Inclusive Sizes</p>
-                <p className="text-[9px] uppercase text-white/70">Free Size to 3XL</p>
-              </div>
-            </div>
-
+            <a
+              href={`https://wa.me/${CONTACT_NUMBERS[0].value}?text=${encodeURIComponent("Hello Yaarika Collections, I would like to explore your Saree & Co-ord collection.")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#25D366] text-white hover:bg-emerald-600 px-6 sm:px-7 py-3 text-xs uppercase tracking-widest font-bold transition-all flex items-center gap-2 rounded-xs shadow-md"
+            >
+              <MessageCircle className="w-4 h-4 fill-white/20" />
+              <span>Order on WhatsApp</span>
+            </a>
           </div>
 
-          {/* Featured Image Frame */}
-          <div className="lg:col-span-4 flex justify-center">
-            <div className="w-full max-w-xs aspect-[3/4] bg-[#F3F0E9] border-2 border-[#D4AF37]/40 p-2 shadow-2xl relative group">
-              <div className="w-full h-full relative overflow-hidden bg-[#2A2A2A]">
-                <img
-                  src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"
-                  alt="Yaarika Collections Royal Edit"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#4A0E17]/80 via-transparent to-transparent"></div>
-                <div className="absolute bottom-3 left-3 right-3 text-left">
-                  <span className="bg-[#4A0E17] text-[#D4AF37] text-[9px] font-bold px-2 py-0.5 border border-[#D4AF37]/40 uppercase tracking-widest">
-                    Heritage Wear
-                  </span>
-                  <p style={{ fontFamily: 'Georgia, serif' }} className="text-sm font-bold text-white mt-1 italic">
-                    Classic Gold Kasavu
-                  </p>
-                </div>
-              </div>
+          {/* Quick Badges */}
+          <div className="pt-6 grid grid-cols-3 gap-3 sm:gap-4 max-w-lg mx-auto border-t border-[#D4AF37]/35 text-center">
+            <div className="px-1">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#4A0E17]">All Kerala</p>
+              <p className="text-[10px] uppercase text-[#7A6E65] font-medium mt-0.5">Free Shipping</p>
+            </div>
+            <div className="px-1 border-x border-[#D4AF37]/25">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#4A0E17]">100% Authentic</p>
+              <p className="text-[10px] uppercase text-[#7A6E65] font-medium mt-0.5">Handloom Quality</p>
+            </div>
+            <div className="px-1">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#4A0E17]">Inclusive Sizes</p>
+              <p className="text-[10px] uppercase text-[#7A6E65] font-medium mt-0.5">Free Size to 3XL</p>
             </div>
           </div>
 

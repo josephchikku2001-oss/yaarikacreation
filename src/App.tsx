@@ -20,6 +20,7 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isAdminSetupComplete, setIsAdminSetupComplete] = useState<boolean>(false);
+  const [visibleCount, setVisibleCount] = useState<number>(24);
 
   // Initial Data Load
   useEffect(() => {
@@ -28,6 +29,11 @@ export default function App() {
     setWishlist(WishlistStorage.getWishlist());
     setIsAdminSetupComplete(AdminStorage.isSetupComplete());
   }, []);
+
+  // Reset pagination when active filter changes
+  useEffect(() => {
+    setVisibleCount(24);
+  }, [activeCategory, searchQuery, viewMode]);
 
   const refreshProducts = () => {
     const fresh = ProductStorage.getProducts();
@@ -291,17 +297,44 @@ export default function App() {
 
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  isWishlisted={wishlist.includes(product.id)}
-                  onToggleWishlist={handleToggleWishlist}
-                  onQuickView={(p) => setSelectedProduct(p)}
-                  onToast={showToast}
-                />
-              ))}
+            <div className="space-y-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredProducts.slice(0, visibleCount).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isWishlisted={wishlist.includes(product.id)}
+                    onToggleWishlist={handleToggleWishlist}
+                    onQuickView={(p) => setSelectedProduct(p)}
+                    onToast={showToast}
+                  />
+                ))}
+              </div>
+
+              {/* Load More Button for large catalogs */}
+              {filteredProducts.length > visibleCount && (
+                <div className="text-center pt-4 pb-8 space-y-3">
+                  <p className="text-xs text-gray-500 font-medium">
+                    Showing <strong className="text-gray-900">{Math.min(visibleCount, filteredProducts.length).toLocaleString()}</strong> of <strong className="text-gray-900">{filteredProducts.length.toLocaleString()}</strong> exquisite items
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      onClick={() => setVisibleCount(prev => prev + 24)}
+                      className="px-8 py-3 rounded-full gold-gradient-btn text-xs font-extrabold uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                    >
+                      Load More Products (+24)
+                    </button>
+                    {filteredProducts.length > visibleCount + 24 && (
+                      <button
+                        onClick={() => setVisibleCount(filteredProducts.length)}
+                        className="px-5 py-3 rounded-full bg-white hover:bg-gray-100 text-[#4A0E17] border border-[#D4AF37]/50 text-xs font-bold uppercase tracking-wider transition-all"
+                      >
+                        Show All ({filteredProducts.length.toLocaleString()})
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

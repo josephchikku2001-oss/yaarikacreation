@@ -146,42 +146,158 @@ export const AdminStorage = {
   }
 };
 
-// PRODUCT CATALOG MANAGEMENT SERVICES
-export const ProductStorage = {
-  getProducts(): Product[] {
-    try {
-      const data = localStorage.getItem(KEYS.PRODUCTS);
-      if (!data) {
-        // Seed initial default products
-        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
-        return INITIAL_PRODUCTS;
-      }
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error loading products from storage:', e);
-      return INITIAL_PRODUCTS;
+// PRODUCT CATALOG MANAGEMENT SERVICES (Supports up to 5,000+ Products with IndexedDB & Local Cache)
+export const MAX_CATALOG_LIMIT = 5000;
+
+// IndexedDB Helper for high-volume storage (up to 5000+ items without localStorage quota issues)
+const IDB_CONFIG = {
+  DB_NAME: 'yaarika_boutique_db_v2',
+  STORE_NAME: 'catalog_products',
+  VERSION: 1
+};
+
+let memoryProductsCache: Product[] | null = null;
+
+function openIndexedDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      reject(new Error('IndexedDB not supported'));
+      return;
     }
+    const request = window.indexedDB.open(IDB_CONFIG.DB_NAME, IDB_CONFIG.VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(IDB_CONFIG.STORE_NAME)) {
+        db.createObjectStore(IDB_CONFIG.STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Background sync to IndexedDB
+async function persistToIndexedDB(products: Product[]): Promise<void> {
+  try {
+    const db = await openIndexedDB();
+    const tx = db.transaction(IDB_CONFIG.STORE_NAME, 'readwrite');
+    const store = tx.objectStore(IDB_CONFIG.STORE_NAME);
+    
+    // Clear and re-populate
+    await new Promise<void>((resolve, reject) => {
+      const clearReq = store.clear();
+      clearReq.onsuccess = () => resolve();
+      clearReq.onerror = () => reject(clearReq.error);
+    });
+
+    for (const p of products) {
+      store.put(p);
+    }
+  } catch (err) {
+    console.warn('IndexedDB persistence sync warning:', err);
+  }
+}
+
+// Initialize and preload from storage
+function loadInitialCatalog(): Product[] {
+  try {
+    const data = localStorage.getItem(KEYS.PRODUCTS);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('LocalStorage catalog read warning, using defaults:', e);
+  }
+
+  // Seed default initial products
+  try {
+    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
+  } catch {
+    // ignore
+  }
+  return INITIAL_PRODUCTS;
+}
+
+export const ProductStorage = {
+  MAX_LIMIT: MAX_CATALOG_LIMIT,
+
+  getProducts(): Product[] {
+    if (!memoryProductsCache) {
+      memoryProductsCache = loadInitialCatalog();
+      // Try background fetch from IndexedDB if more items exist
+      openIndexedDB().then(db => {
+        const tx = db.transaction(IDB_CONFIG.STORE_NAME, 'readonly');
+        const store = tx.objectStore(IDB_CONFIG.STORE_NAME);
+        const getAllReq = store.getAll();
+        getAllReq.onsuccess = () => {
+          if (Array.isArray(getAllReq.result) && getAllReq.result.length > (memoryProductsCache?.length || 0)) {
+            memoryProductsCache = getAllReq.result;
+          }
+        };
+      }).catch(() => {});
+    }
+    return memoryProductsCache;
   },
 
   saveProducts(products: Product[]): void {
+    // Cap at 5000 max
+    const capped = products.slice(0, MAX_CATALOG_LIMIT);
+    memoryProductsCache = capped;
+
+    // Try saving to localStorage (with chunk safety)
     try {
-      localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+      localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(capped));
     } catch (e) {
-      console.error('Error saving products to storage:', e);
+      console.warn('LocalStorage quota warning. Saving light snapshot in localStorage and full catalog in IndexedDB.', e);
+      try {
+        // Store first 150 in localStorage as fallback
+        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(capped.slice(0, 150)));
+      } catch {}
     }
+
+    // Persist full 5,000 capacity in IndexedDB
+    persistToIndexedDB(capped);
   },
 
   addProduct(newProduct: Omit<Product, 'id' | 'createdAt'>): Product {
     const currentProducts = this.getProducts();
+    if (currentProducts.length >= MAX_CATALOG_LIMIT) {
+      throw new Error(`Catalog limit of ${MAX_CATALOG_LIMIT.toLocaleString()} products reached. Please remove old items or update existing ones.`);
+    }
+
     const createdProduct: Product = {
       ...newProduct,
-      id: `product-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       createdAt: new Date().toISOString()
     };
 
     const updated = [createdProduct, ...currentProducts];
     this.saveProducts(updated);
     return createdProduct;
+  },
+
+  bulkAddProducts(newItems: Array<Omit<Product, 'id' | 'createdAt'>>): { added: number; total: number; capacityReached: boolean } {
+    const currentProducts = this.getProducts();
+    const availableSlots = Math.max(0, MAX_CATALOG_LIMIT - currentProducts.length);
+    const toAdd = newItems.slice(0, availableSlots);
+
+    const createdList: Product[] = toAdd.map((item, idx) => ({
+      ...item,
+      id: `prod-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: new Date().toISOString()
+    }));
+
+    const updated = [...createdList, ...currentProducts];
+    this.saveProducts(updated);
+
+    return {
+      added: createdList.length,
+      total: updated.length,
+      capacityReached: updated.length >= MAX_CATALOG_LIMIT
+    };
   },
 
   updateProduct(updatedProduct: Product): void {
@@ -206,6 +322,186 @@ export const ProductStorage = {
   resetToDefault(): Product[] {
     this.saveProducts(INITIAL_PRODUCTS);
     return INITIAL_PRODUCTS;
+  },
+
+  clearAllProducts(): void {
+    this.saveProducts([]);
+  },
+
+  // Export full catalog as JSON string
+  exportCatalogJSON(): string {
+    const products = this.getProducts();
+    return JSON.stringify(products, null, 2);
+  },
+
+  // Export catalog as CSV
+  exportCatalogCSV(): string {
+    const products = this.getProducts();
+    const headers = ['ID', 'Title', 'Category', 'Price', 'OriginalPrice', 'InStock', 'IsNewArrival', 'Sizes', 'ImageUrl', 'Description'];
+    const rows = products.map(p => [
+      `"${p.id}"`,
+      `"${(p.title || '').replace(/"/g, '""')}"`,
+      `"${p.category}"`,
+      p.price,
+      p.originalPrice || '',
+      p.inStock ? 'TRUE' : 'FALSE',
+      p.isNewArrival ? 'TRUE' : 'FALSE',
+      `"${p.sizes.join('|')}"`,
+      `"${(p.imageUrl || '').replace(/"/g, '""')}"`,
+      `"${(p.description || '').replace(/"/g, '""')}"`
+    ]);
+
+    return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  },
+
+  // Import products from CSV text
+  importCatalogCSV(csvText: string): { success: boolean; count: number; error?: string } {
+    try {
+      const lines = csvText.trim().split('\n');
+      if (lines.length <= 1) {
+        return { success: false, count: 0, error: 'CSV file is empty or missing data rows.' };
+      }
+
+      const itemsToImport: Array<Omit<Product, 'id' | 'createdAt'>> = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Simple CSV splitter handling quotes
+        const cols: string[] = [];
+        let inQuotes = false;
+        let current = '';
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            cols.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        cols.push(current.trim());
+
+        // Parse fields
+        // Order: ID(0), Title(1), Category(2), Price(3), OriginalPrice(4), InStock(5), IsNewArrival(6), Sizes(7), ImageUrl(8), Description(9)
+        const clean = (val: string) => (val || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+
+        const title = clean(cols[1] || cols[0]);
+        if (!title) continue;
+
+        const category = (clean(cols[2]) || 'Fusion Wear') as Product['category'];
+        const price = parseFloat(clean(cols[3])) || 1499;
+        const originalPrice = parseFloat(clean(cols[4])) || (price + 500);
+        const inStock = clean(cols[5]).toUpperCase() !== 'FALSE';
+        const isNewArrival = clean(cols[6]).toUpperCase() === 'TRUE';
+        const rawSizes = clean(cols[7]);
+        const sizes = rawSizes ? rawSizes.split('|').map(s => s.trim() as Product['sizes'][number]) : ['Free Size' as const];
+        const imageUrl = clean(cols[8]) || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+        const description = clean(cols[9]) || `${title} from Yaarika Collections.`;
+
+        itemsToImport.push({
+          title,
+          category,
+          price,
+          originalPrice,
+          inStock,
+          isNewArrival,
+          sizes: sizes.length > 0 ? sizes : ['Free Size'],
+          imageUrl,
+          description
+        });
+      }
+
+      if (itemsToImport.length === 0) {
+        return { success: false, count: 0, error: 'No valid product rows found in CSV.' };
+      }
+
+      const res = this.bulkAddProducts(itemsToImport);
+      return { success: true, count: res.added };
+    } catch (e) {
+      return { success: false, count: 0, error: (e as Error).message || 'Failed to parse CSV.' };
+    }
+  },
+
+  // Import products from JSON text
+  importCatalogJSON(jsonText: string): { success: boolean; count: number; error?: string } {
+    try {
+      const parsed = JSON.parse(jsonText);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return { success: false, count: 0, error: 'JSON must be an array of products.' };
+      }
+
+      const itemsToImport: Array<Omit<Product, 'id' | 'createdAt'>> = parsed.map(item => ({
+        title: String(item.title || 'Untitled Yaarika Piece'),
+        category: (item.category || 'Fusion Wear'),
+        price: Number(item.price) || 1299,
+        originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined,
+        inStock: item.inStock !== false,
+        isNewArrival: Boolean(item.isNewArrival),
+        sizes: Array.isArray(item.sizes) && item.sizes.length > 0 ? item.sizes : ['Free Size'],
+        imageUrl: String(item.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800'),
+        description: String(item.description || 'Exclusive boutique wear.')
+      }));
+
+      const res = this.bulkAddProducts(itemsToImport);
+      return { success: true, count: res.added };
+    } catch (e) {
+      return { success: false, count: 0, error: (e as Error).message || 'Invalid JSON format.' };
+    }
+  },
+
+  // Generate batch realistic sample products for testing scale up to 5,000 items
+  generateDemoBatch(count: number): { added: number; total: number } {
+    const categories: Product['category'][] = [
+      'Traditional Sarees',
+      'Co-ord Sets',
+      'Churidar Sets',
+      'Fusion Wear',
+      'New Arrivals'
+    ];
+
+    const sampleImages = [
+      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1596783074918-c84cb06531ca?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&q=80&w=800'
+    ];
+
+    const fabricTypes = ['Pure Kasavu Gold Tissue', 'Kanchipuram Silk', 'Chanderi Zari', 'Linen Cotton', 'Georgette Embroidered', 'Handloom Cotton', 'Organza Floral'];
+    const titles = ['Royal Heirloom', 'Festive Edit', 'Elegance Drape', 'Temple Border', 'Modern Fusion', 'Pastel Blossom', 'Golden Weave', 'Palazzo Ensemble'];
+
+    const items: Array<Omit<Product, 'id' | 'createdAt'>> = [];
+    const baseNumber = this.getProducts().length + 1;
+
+    for (let i = 0; i < count; i++) {
+      const idx = baseNumber + i;
+      const cat = categories[idx % categories.length];
+      const fabric = fabricTypes[idx % fabricTypes.length];
+      const name = titles[idx % titles.length];
+      const price = 899 + ((idx * 170) % 6500);
+      const originalPrice = price + 400 + ((idx * 120) % 2000);
+      const img = sampleImages[idx % sampleImages.length];
+
+      items.push({
+        title: `${name} ${fabric} #${idx}`,
+        category: cat,
+        price,
+        originalPrice,
+        inStock: i % 7 !== 0, // 85% in stock
+        isNewArrival: i % 4 === 0,
+        sizes: ['S', 'M', 'L', 'XL', 'Free Size'],
+        imageUrl: img,
+        description: `Premium ${fabric} crafted with exquisite craftsmanship. Perfect for weddings, Onam festivities, and festive celebrations. All Kerala Free Shipping included.`
+      });
+    }
+
+    const res = this.bulkAddProducts(items);
+    return { added: res.added, total: res.total };
   }
 };
 

@@ -59,117 +59,73 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Main Navbar Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3 sm:py-4">
-        <div className="flex items-center justify-between gap-4">
+      {/* Main Brand & Actions Header */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-3 pb-2 sm:pt-4 sm:pb-3">
+        <div className="relative flex items-center justify-between">
           
-          {/* Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-6 text-[11px] uppercase tracking-widest font-bold">
-            {categories.slice(0, 4).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => {
-                  onSelectCategory(cat);
-                  if (viewMode !== 'catalog') onSetViewMode('catalog');
-                }}
-                className={`transition-colors py-1 ${
-                  activeCategory === cat && viewMode === 'catalog'
-                    ? 'border-b-2 border-[#D4AF37] text-white font-extrabold'
-                    : 'text-[#D4AF37]/80 hover:text-white'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Centered Brand Title with Logo */}
-          <div 
-            className="flex items-center gap-3 cursor-pointer select-none group" 
-            onClick={() => onSetViewMode('catalog')}
-          >
-            <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-lg overflow-hidden border-2 border-[#D4AF37] shadow-md group-hover:scale-105 transition-transform bg-[#4A0E17] flex-shrink-0 flex items-center justify-center p-0.5">
-              <img 
-                src={yaarikaLogo} 
-                alt="Yaarika Collections Logo" 
-                className="w-full h-full object-contain border border-[#050505]"
-                style={{ borderColor: '#050505' }}
-                referrerPolicy="no-referrer"
-              />
-            </div>
-            <div className="text-left">
-              <h1 style={{ fontFamily: 'Georgia, serif' }} className="text-2xl sm:text-3xl italic font-bold tracking-tight text-[#D4AF37] leading-none">
-                Yaarika
-              </h1>
-              <p className="text-[9px] uppercase tracking-[0.3em] mt-0.5 text-white/80 font-semibold">
-                Collections
-              </p>
-            </div>
-          </div>
-
-          {/* Right Header Actions */}
-          <div className="flex items-center gap-4">
-            
-            {/* Search Input Bar */}
-            <div className="relative hidden sm:block">
-              <input
-                type="text"
-                placeholder="SEARCH..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className={`bg-transparent border-b text-[11px] pl-2 pr-6 py-1 text-white focus:outline-none w-28 sm:w-40 placeholder:text-[#D4AF37]/50 tracking-wider uppercase transition-colors ${
-                  searchQuery && totalResultsCount === 0 
-                    ? 'border-rose-400 text-rose-200 focus:border-rose-300' 
-                    : 'border-[#D4AF37]/60 focus:border-[#D4AF37]'
-                }`}
-              />
-              {searchQuery ? (
-                <button
-                  onClick={() => onSearchChange('')}
-                  className="absolute right-1 top-1.5 text-[#D4AF37] hover:text-white p-0.5"
-                  title="Clear Search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              ) : (
-                <Search className="w-3.5 h-3.5 absolute right-1 top-2 text-[#D4AF37]" />
-              )}
-            </div>
-
-            {/* Wishlist Button */}
-            <button
-              onClick={() => onSetViewMode('wishlist')}
-              className={`px-3 py-1.5 border text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                viewMode === 'wishlist'
-                  ? 'bg-[#D4AF37] text-[#4A0E17] border-[#D4AF37]'
-                  : 'border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#4A0E17]'
-              }`}
-              title="Saved Wishlist"
-            >
-              <Heart className={`w-3.5 h-3.5 ${wishlistCount > 0 ? 'fill-current text-rose-500' : ''}`} />
-              <span className="hidden sm:inline">Saved</span>
-              {wishlistCount > 0 && (
-                <span className="bg-[#4A0E17] text-[#D4AF37] text-[9px] font-bold px-1.5 py-0.2 rounded-full border border-[#D4AF37]/50">
-                  {wishlistCount}
-                </span>
-              )}
-            </button>
-
-            {/* Shop New Arrivals CTA */}
+          {/* Left Action / Spacer (on desktop) */}
+          <div className="flex items-center gap-2 lg:w-48">
             <button
               onClick={() => {
                 onSelectCategory('New Arrivals');
                 onSetViewMode('catalog');
               }}
-              className="bg-[#D4AF37] text-[#4A0E17] px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all hidden sm:block shadow-md"
+              className="bg-[#D4AF37] text-[#4A0E17] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all hidden sm:flex items-center gap-1.5 shadow-md rounded-sm"
             >
-              New Arrivals
+              <Sparkles className="w-3 h-3" />
+              <span>New Arrivals</span>
+            </button>
+          </div>
+
+          {/* Centered Brand Title with Monogram Logo */}
+          <div 
+            className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 cursor-pointer select-none group mx-auto text-center" 
+            onClick={() => onSetViewMode('catalog')}
+          >
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 border-[#D4AF37] shadow-lg group-hover:scale-105 transition-transform bg-[#32080F] flex-shrink-0 flex items-center justify-center p-0.5">
+              <img 
+                src={yaarikaLogo} 
+                alt="Yaarika Collections Logo" 
+                className="w-full h-full object-contain rounded-lg border border-[#050505]"
+                style={{ borderColor: '#050505' }}
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="text-center sm:text-left">
+              <h1 style={{ fontFamily: 'Georgia, serif' }} className="text-2xl sm:text-3xl lg:text-4xl italic font-extrabold tracking-tight text-[#D4AF37] leading-none drop-shadow-sm">
+                Yaarika
+              </h1>
+              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.35em] mt-1 text-white/90 font-bold">
+                Collections
+              </p>
+            </div>
+          </div>
+
+          {/* Right Header Actions (Wishlist & Mobile Toggle) */}
+          <div className="flex items-center justify-end gap-2 sm:gap-3 lg:w-48">
+            {/* Wishlist Button */}
+            <button
+              onClick={() => onSetViewMode('wishlist')}
+              className={`px-3 py-1.5 border text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all rounded-sm shadow-sm ${
+                viewMode === 'wishlist'
+                  ? 'bg-[#D4AF37] text-[#4A0E17] border-[#D4AF37]'
+                  : 'border-[#D4AF37]/50 bg-black/20 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#4A0E17]'
+              }`}
+              title="Saved Wishlist"
+            >
+              <Heart className={`w-3.5 h-3.5 ${wishlistCount > 0 ? 'fill-current text-rose-500' : ''}`} />
+              <span className="hidden sm:inline">Wishlist</span>
+              {wishlistCount > 0 && (
+                <span className="bg-[#4A0E17] text-[#D4AF37] text-[9px] font-extrabold px-1.5 py-0.2 rounded-full border border-[#D4AF37]/50">
+                  {wishlistCount}
+                </span>
+              )}
             </button>
 
             {/* Mobile Hamburger Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 text-[#D4AF37] hover:text-white"
+              className="lg:hidden p-1.5 text-[#D4AF37] hover:text-white rounded-md hover:bg-black/20"
               aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -178,36 +134,47 @@ export const Header: React.FC<HeaderProps> = ({
 
         </div>
 
-        {/* Mobile Search Bar */}
-        <div className="sm:hidden mt-3">
+        {/* Centered White-Themed Search Bar directly below Yaarika Collections */}
+        <div className="mt-3 sm:mt-4 max-w-xl mx-auto w-full px-2 sm:px-0">
           <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="SEARCH CATALOG..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className={`w-full bg-black/20 border-b text-white placeholder:text-[#D4AF37]/50 text-xs pl-3 pr-8 py-1.5 focus:outline-none uppercase tracking-wider transition-colors ${
-                searchQuery && totalResultsCount === 0
-                  ? 'border-rose-400 text-rose-200'
-                  : 'border-[#D4AF37]/60 focus:border-[#D4AF37]'
-              }`}
-            />
-            {searchQuery ? (
-              <button
-                onClick={() => onSearchChange('')}
-                className="absolute right-2 top-1.5 text-[#D4AF37] hover:text-white p-0.5"
-                title="Clear Search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            ) : (
-              <Search className="w-3.5 h-3.5 absolute right-2 top-2 text-[#D4AF37]" />
+            <div className={`flex items-center bg-white rounded-full border-2 transition-all shadow-md overflow-hidden ${
+              searchQuery && totalResultsCount === 0
+                ? 'border-rose-400 ring-2 ring-rose-400/20'
+                : 'border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/40 focus-within:border-[#4A0E17]'
+            }`}>
+              <div className="pl-3.5 sm:pl-4 text-[#4A0E17] flex items-center justify-center">
+                <Search className="w-4 h-4 text-[#4A0E17]" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search Sarees, Co-ords, Churidars, Kurtis..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full bg-white text-gray-900 placeholder:text-gray-400 text-xs sm:text-sm font-medium px-3 py-2 sm:py-2.5 focus:outline-none tracking-normal"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange('')}
+                  className="pr-3.5 sm:pr-4 text-gray-400 hover:text-[#4A0E17] transition-colors p-1"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Search feedback tag if searching */}
+            {searchQuery && totalResultsCount === 0 && (
+              <p className="text-[11px] text-rose-200 mt-1 text-center font-semibold drop-shadow-sm">
+                No matching items found. Try a different keyword.
+              </p>
             )}
           </div>
         </div>
 
-        {/* Category bar for mobile or extra items */}
-        <div className="flex lg:hidden items-center gap-3 mt-3 pt-2 border-t border-[#D4AF37]/20 overflow-x-auto no-scrollbar">
+        {/* Desktop & Tablet Categories Nav Bar */}
+        <div className="hidden sm:flex items-center justify-center gap-6 sm:gap-8 mt-4 pt-2.5 border-t border-[#D4AF37]/20 text-[11px] uppercase tracking-widest font-bold">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -215,10 +182,30 @@ export const Header: React.FC<HeaderProps> = ({
                 onSelectCategory(cat);
                 if (viewMode !== 'catalog') onSetViewMode('catalog');
               }}
-              className={`text-[10px] uppercase font-bold tracking-wider whitespace-nowrap pb-1 border-b ${
+              className={`transition-all py-1 border-b-2 ${
                 activeCategory === cat && viewMode === 'catalog'
-                  ? 'border-[#D4AF37] text-white'
-                  : 'border-transparent text-[#D4AF37]/70 hover:text-white'
+                  ? 'border-[#D4AF37] text-white font-extrabold shadow-sm scale-105'
+                  : 'border-transparent text-[#D4AF37]/80 hover:text-white hover:border-[#D4AF37]/40'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Mobile Horizontal Category Pills */}
+        <div className="flex sm:hidden items-center gap-2 mt-3 pt-2 border-t border-[#D4AF37]/20 overflow-x-auto no-scrollbar pb-1">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                onSelectCategory(cat);
+                if (viewMode !== 'catalog') onSetViewMode('catalog');
+              }}
+              className={`text-[10px] uppercase font-bold tracking-wider whitespace-nowrap px-2.5 py-1 rounded-full border transition-all ${
+                activeCategory === cat && viewMode === 'catalog'
+                  ? 'bg-[#D4AF37] text-[#4A0E17] border-[#D4AF37]'
+                  : 'bg-black/20 text-[#D4AF37]/80 border-[#D4AF37]/30 hover:text-white'
               }`}
             >
               {cat}
