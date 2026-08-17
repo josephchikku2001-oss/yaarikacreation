@@ -31,7 +31,7 @@ import {
   HardDrive
 } from 'lucide-react';
 import { Product, CategoryType, SizeType, InquiryLog } from '../types';
-import { AdminStorage, ProductStorage, InquiryStorage, MAX_CATALOG_LIMIT } from '../services/storage';
+import { AdminStorage, ProductStorage, InquiryStorage } from '../services/storage';
 
 interface AdminPortalProps {
   onClose: () => void;
@@ -395,7 +395,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           onRefreshProducts();
           setBulkStatus({
             type: 'success',
-            message: `Successfully imported ${res.count.toLocaleString()} products! Total Catalog: ${fresh.length.toLocaleString()} / ${MAX_CATALOG_LIMIT.toLocaleString()}`
+            message: `Successfully imported ${res.count.toLocaleString()} products! Total Catalog: ${fresh.length.toLocaleString()} products.`
           });
           setBulkInputText('');
           onToast(`Imported ${res.count} products successfully!`);
@@ -440,11 +440,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleGenerateSampleBatch = (count: number) => {
-    if (products.length >= MAX_CATALOG_LIMIT) {
-      alert(`Maximum capacity of ${MAX_CATALOG_LIMIT.toLocaleString()} products reached!`);
-      return;
-    }
-
     setIsProcessingBulk(true);
     setTimeout(() => {
       const res = ProductStorage.generateDemoBatch(count);
@@ -454,7 +449,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setIsProcessingBulk(false);
       setBulkStatus({
         type: 'success',
-        message: `Generated ${res.added.toLocaleString()} realistic boutique products. Total now: ${res.total.toLocaleString()} / ${MAX_CATALOG_LIMIT.toLocaleString()}`
+        message: `Generated ${res.added.toLocaleString()} realistic boutique products. Total catalog size: ${res.total.toLocaleString()} products.`
       });
       onToast(`Generated +${res.added} boutique items!`);
     }, 50);
@@ -491,7 +486,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const inStockCount = products.filter(p => p.inStock).length;
   const outOfStockCount = products.filter(p => !p.inStock).length;
-  const capacityPercent = Math.min(100, Math.round((products.length / MAX_CATALOG_LIMIT) * 100));
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
@@ -750,7 +744,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   }`}
                 >
                   <Database className="w-4 h-4 text-amber-600" />
-                  <span>Bulk Tools (5,000 Capacity)</span>
+                  <span>Bulk Tools &amp; Import</span>
                 </button>
 
                 <button
@@ -790,18 +784,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#4A0E17]">Catalog Capacity:</span>
-                          <span className="text-xs font-extrabold text-gray-900">{products.length.toLocaleString()} / {MAX_CATALOG_LIMIT.toLocaleString()} products</span>
+                          <span className="text-xs font-bold text-[#4A0E17]">Catalog Size:</span>
+                          <span className="text-xs font-extrabold text-gray-900">{products.length.toLocaleString()} Products Live</span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
-                            IndexedDB 5K Ready
+                            Unlimited Capacity (IndexedDB)
                           </span>
                         </div>
-                        <div className="w-48 sm:w-64 bg-gray-200 h-2 rounded-full overflow-hidden mt-1.5 border border-gray-300">
-                          <div
-                            className="h-full bg-gradient-to-r from-emerald-500 via-[#D4AF37] to-[#4A0E17] transition-all duration-500 rounded-full"
-                            style={{ width: `${Math.max(2, (products.length / MAX_CATALOG_LIMIT) * 100)}%` }}
-                          ></div>
-                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Add unlimited boutique collections without restrictions.
+                        </p>
                       </div>
                     </div>
 
@@ -820,7 +811,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         title="Bulk Upload or Batch Generate"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>Bulk Upload / 5K Tools</span>
+                        <span>Bulk Upload &amp; Tools</span>
                       </button>
                     </div>
                   </div>
@@ -1065,7 +1056,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               )}
 
-              {/* TAB 3: BULK 5,000 PRODUCTS MANAGEMENT */}
+              {/* TAB 3: BULK PRODUCTS MANAGEMENT */}
               {activeTab === 'bulk' && (
                 <div className="space-y-6 max-w-4xl mx-auto">
                   
@@ -1080,10 +1071,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </div>
                         <div>
                           <h3 className="font-cinzel text-lg font-bold text-[#4A0E17]">
-                            5,000 Products High-Volume Catalog Engine
+                            Unlimited Products Catalog Engine
                           </h3>
                           <p className="text-xs text-gray-600">
-                            IndexedDB persistent database active with automated high-speed caching.
+                            IndexedDB persistent database engine with instantaneous real-time storefront synchronization.
                           </p>
                         </div>
                       </div>
@@ -1092,24 +1083,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <span className="text-2xl font-extrabold text-[#4A0E17]">
                           {products.length.toLocaleString()}
                         </span>
-                        <span className="text-xs text-gray-500 font-bold"> / {MAX_CATALOG_LIMIT.toLocaleString()} items</span>
+                        <span className="text-xs text-gray-500 font-bold"> Live Products</span>
                         <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
-                          {(MAX_CATALOG_LIMIT - products.length).toLocaleString()} slots available
+                          Unlimited Capacity
                         </p>
-                      </div>
-                    </div>
-
-                    {/* Visual Meter */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-bold text-gray-700">
-                        <span>Database Utilization</span>
-                        <span>{((products.length / MAX_CATALOG_LIMIT) * 100).toFixed(1)}% Full</span>
-                      </div>
-                      <div className="w-full bg-gray-100 h-3.5 rounded-full overflow-hidden p-0.5 border border-gray-200 shadow-inner">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-500 via-[#D4AF37] to-[#4A0E17] rounded-full transition-all duration-500"
-                          style={{ width: `${Math.max(1, (products.length / MAX_CATALOG_LIMIT) * 100)}%` }}
-                        ></div>
                       </div>
                     </div>
 
@@ -1117,32 +1094,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-2">
                       <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
                         <Sparkles className="w-4 h-4 text-amber-600" />
-                        <span>Quick Scale Test (Generate Sample Boutique Items)</span>
+                        <span>Quick Batch Generator (Generate Sample Boutique Items)</span>
                       </div>
                       <p className="text-[11px] text-amber-800 leading-relaxed">
-                        Instantly populate high-resolution Kerala Sarees, Co-ord Sets, and Churidars with prices and descriptions to test handling up to 5,000 items:
+                        Instantly populate high-resolution Kerala Sarees, Co-ord Sets, and Churidars with prices, sizes, and detailed descriptions:
                       </p>
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <button
                           onClick={() => handleGenerateSampleBatch(50)}
-                          disabled={isProcessingBulk || products.length >= MAX_CATALOG_LIMIT}
+                          disabled={isProcessingBulk}
                           className="px-3 py-1.5 rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold text-xs transition-colors disabled:opacity-50"
                         >
                           + Generate 50 Items
                         </button>
                         <button
                           onClick={() => handleGenerateSampleBatch(200)}
-                          disabled={isProcessingBulk || products.length >= MAX_CATALOG_LIMIT}
+                          disabled={isProcessingBulk}
                           className="px-3 py-1.5 rounded-lg bg-amber-300 hover:bg-amber-400 text-amber-950 font-bold text-xs transition-colors disabled:opacity-50"
                         >
                           + Generate 200 Items
                         </button>
                         <button
                           onClick={() => handleGenerateSampleBatch(500)}
-                          disabled={isProcessingBulk || products.length >= MAX_CATALOG_LIMIT}
+                          disabled={isProcessingBulk}
                           className="px-3 py-1.5 rounded-lg bg-[#4A0E17] text-[#D4AF37] hover:bg-[#32080F] font-bold text-xs transition-colors disabled:opacity-50"
                         >
                           + Generate 500 Items
+                        </button>
+                        <button
+                          onClick={() => handleGenerateSampleBatch(1000)}
+                          disabled={isProcessingBulk}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-800 text-emerald-100 hover:bg-emerald-900 font-bold text-xs transition-colors disabled:opacity-50"
+                        >
+                          + Generate 1,000 Items
                         </button>
                       </div>
                     </div>

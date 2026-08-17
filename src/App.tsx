@@ -7,12 +7,12 @@ import { AdminPortal } from './components/AdminPortal';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
 import { CategoryType, Product, ViewMode } from './types';
-import { ProductStorage, WishlistStorage, AdminStorage } from './services/storage';
+import { ProductStorage, WishlistStorage, AdminStorage, PRODUCTS_UPDATED_EVENT } from './services/storage';
 import { Sparkles, Heart, Filter, MessageCircle, ArrowRight, ShieldCheck, Check, SearchX, AlertTriangle, RotateCcw, Search } from 'lucide-react';
 import { CONTACT_NUMBERS } from './utils/whatsapp';
 
 export default function App() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => ProductStorage.getProducts());
   const [activeCategory, setActiveCategory] = useState<CategoryType>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -22,12 +22,35 @@ export default function App() {
   const [isAdminSetupComplete, setIsAdminSetupComplete] = useState<boolean>(false);
   const [visibleCount, setVisibleCount] = useState<number>(24);
 
-  // Initial Data Load
+  // Initial Data Load & Real-Time Sync with Admin Portal
   useEffect(() => {
-    const loadedProducts = ProductStorage.getProducts();
-    setProducts(loadedProducts);
+    // 1. Initial Synchronous & Asynchronous IndexedDB fetch
+    const syncProducts = ProductStorage.getProducts();
+    setProducts(syncProducts);
     setWishlist(WishlistStorage.getWishlist());
     setIsAdminSetupComplete(AdminStorage.isSetupComplete());
+
+    // 2. Asynchronous fetch from IndexedDB to ensure full unlimited catalog is loaded
+    ProductStorage.loadProductsAsync().then((allProducts) => {
+      if (allProducts && allProducts.length > 0) {
+        setProducts(allProducts);
+      }
+    });
+
+    // 3. Listen to instant broadcast events when admin adds/edits/deletes products
+    const handleProductsUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<Product[]>;
+      if (customEvent.detail && Array.isArray(customEvent.detail)) {
+        setProducts(customEvent.detail);
+      } else {
+        setProducts(ProductStorage.getProducts());
+      }
+    };
+
+    window.addEventListener(PRODUCTS_UPDATED_EVENT, handleProductsUpdated);
+    return () => {
+      window.removeEventListener(PRODUCTS_UPDATED_EVENT, handleProductsUpdated);
+    };
   }, []);
 
   // Reset pagination when active filter changes
@@ -36,8 +59,9 @@ export default function App() {
   }, [activeCategory, searchQuery, viewMode]);
 
   const refreshProducts = () => {
-    const fresh = ProductStorage.getProducts();
-    setProducts(fresh);
+    ProductStorage.loadProductsAsync().then((allProducts) => {
+      setProducts(allProducts);
+    });
     setIsAdminSetupComplete(AdminStorage.isSetupComplete());
   };
 

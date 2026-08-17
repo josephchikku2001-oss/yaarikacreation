@@ -136,13 +136,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Centered White-Themed Search Bar directly below Yaarika Collections */}
         <div className="mt-3 sm:mt-4 max-w-xl mx-auto w-full px-2 sm:px-0">
-          <div className="relative w-full">
-            <div className={`flex items-center bg-white rounded-full border-2 transition-all shadow-md overflow-hidden ${
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              const el = document.getElementById('catalog-grid');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="relative w-full"
+          >
+            <div className={`flex items-center bg-white rounded-full border-2 p-1 transition-all shadow-md ${
               searchQuery && totalResultsCount === 0
                 ? 'border-rose-400 ring-2 ring-rose-400/20'
                 : 'border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/40 focus-within:border-[#4A0E17]'
             }`}>
-              <div className="pl-3.5 sm:pl-4 text-[#4A0E17] flex items-center justify-center">
+              <div className="pl-3 sm:pl-3.5 text-[#4A0E17] flex items-center justify-center">
                 <Search className="w-4 h-4 text-[#4A0E17]" />
               </div>
               <input
@@ -150,18 +157,31 @@ export const Header: React.FC<HeaderProps> = ({
                 placeholder="Search Sarees, Co-ords, Churidars, Kurtis..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-white text-gray-900 placeholder:text-gray-400 text-xs sm:text-sm font-medium px-3 py-2 sm:py-2.5 focus:outline-none tracking-normal"
+                className="w-full bg-white text-gray-900 placeholder:text-gray-400 text-xs sm:text-sm font-medium px-2.5 sm:px-3 py-1.5 sm:py-2 focus:outline-none tracking-normal"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => onSearchChange('')}
-                  className="pr-3.5 sm:pr-4 text-gray-400 hover:text-[#4A0E17] transition-colors p-1"
+                  className="px-2 text-gray-400 hover:text-[#4A0E17] transition-colors p-1"
                   title="Clear search"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
+              {/* Yellow Color Search Button at the End of Search Bar */}
+              <button
+                type="submit"
+                onClick={() => {
+                  const el = document.getElementById('catalog-grid');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="bg-[#FACC15] hover:bg-[#EAB308] text-[#32080F] font-extrabold text-xs sm:text-sm px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full flex items-center gap-1.5 shadow transition-all transform active:scale-95 shrink-0 border border-amber-300 hover:shadow-md cursor-pointer"
+                title="Search Products"
+              >
+                <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
+                <span className="font-bold tracking-wide">Search</span>
+              </button>
             </div>
 
             {/* Search feedback tag if searching */}
@@ -170,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({
                 No matching items found. Try a different keyword.
               </p>
             )}
-          </div>
+          </form>
         </div>
 
         {/* Desktop & Tablet Categories Nav Bar */}

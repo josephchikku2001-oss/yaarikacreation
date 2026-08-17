@@ -8,6 +8,8 @@ const KEYS = {
   INQUIRIES: 'yaarika_inquiries_v1'
 };
 
+export const PRODUCTS_UPDATED_EVENT = 'yaarika_products_updated';
+
 // Simple cryptographic hash function using SHA-256 for browser
 async function hashPassword(password: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(password);
@@ -146,10 +148,7 @@ export const AdminStorage = {
   }
 };
 
-// PRODUCT CATALOG MANAGEMENT SERVICES (Supports up to 5,000+ Products with IndexedDB & Local Cache)
-export const MAX_CATALOG_LIMIT = 5000;
-
-// IndexedDB Helper for high-volume storage (up to 5000+ items without localStorage quota issues)
+// PRODUCT CATALOG MANAGEMENT SERVICES (Supports UNLIMITED Products with IndexedDB & Memory Cache)
 const IDB_CONFIG = {
   DB_NAME: 'yaarika_boutique_db_v2',
   STORE_NAME: 'catalog_products',
@@ -198,6 +197,13 @@ async function persistToIndexedDB(products: Product[]): Promise<void> {
   }
 }
 
+// Broadcast product update event to all components & windows
+function broadcastProductsUpdate(products: Product[]): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PRODUCTS_UPDATED_EVENT, { detail: products }));
+  }
+}
+
 // Initialize and preload from storage
 function loadInitialCatalog(): Product[] {
   try {
@@ -222,8 +228,7 @@ function loadInitialCatalog(): Product[] {
 }
 
 export const ProductStorage = {
-  MAX_LIMIT: MAX_CATALOG_LIMIT,
-
+  // Synchronous getter for fast initial render
   getProducts(): Product[] {
     if (!memoryProductsCache) {
       memoryProductsCache = loadInitialCatalog();
@@ -233,8 +238,10 @@ export const ProductStorage = {
         const store = tx.objectStore(IDB_CONFIG.STORE_NAME);
         const getAllReq = store.getAll();
         getAllReq.onsuccess = () => {
-          if (Array.isArray(getAllReq.result) && getAllReq.result.length > (memoryProductsCache?.length || 0)) {
+          if (Array.isArray(getAllReq.result) && getAllReq.result.length > 0) {
+            // If IndexedDB has items, use it
             memoryProductsCache = getAllReq.result;
+            broadcastProductsUpdate(memoryProductsCache);
           }
         };
       }).catch(() => {});
@@ -242,31 +249,55 @@ export const ProductStorage = {
     return memoryProductsCache;
   },
 
-  saveProducts(products: Product[]): void {
-    // Cap at 5000 max
-    const capped = products.slice(0, MAX_CATALOG_LIMIT);
-    memoryProductsCache = capped;
-
-    // Try saving to localStorage (with chunk safety)
+  // Asynchronous loader directly from IndexedDB
+  async loadProductsAsync(): Promise<Product[]> {
     try {
-      localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(capped));
+      const db = await openIndexedDB();
+      const tx = db.transaction(IDB_CONFIG.STORE_NAME, 'readonly');
+      const store = tx.objectStore(IDB_CONFIG.STORE_NAME);
+      const items = await new Promise<Product[]>((resolve, reject) => {
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+
+      if (items.length > 0) {
+        memoryProductsCache = items;
+        return items;
+      }
     } catch (e) {
-      console.warn('LocalStorage quota warning. Saving light snapshot in localStorage and full catalog in IndexedDB.', e);
+      console.warn('Could not read from IndexedDB, falling back to sync cache:', e);
+    }
+
+    const syncItems = this.getProducts();
+    // Also save syncItems to IndexedDB to bootstrap it
+    persistToIndexedDB(syncItems);
+    return syncItems;
+  },
+
+  saveProducts(products: Product[]): void {
+    memoryProductsCache = products;
+
+    // Try saving to localStorage (stores up to quota limit, IndexedDB stores unlimited)
+    try {
+      localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+    } catch (e) {
+      console.warn('LocalStorage full, saving snapshot in localStorage and full unlimited catalog in IndexedDB.', e);
       try {
-        // Store first 150 in localStorage as fallback
-        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(capped.slice(0, 150)));
+        // Store first 100 items in localStorage as quick cache
+        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products.slice(0, 100)));
       } catch {}
     }
 
-    // Persist full 5,000 capacity in IndexedDB
-    persistToIndexedDB(capped);
+    // Persist unlimited catalog in IndexedDB
+    persistToIndexedDB(products);
+
+    // Notify all components in real-time
+    broadcastProductsUpdate(products);
   },
 
   addProduct(newProduct: Omit<Product, 'id' | 'createdAt'>): Product {
     const currentProducts = this.getProducts();
-    if (currentProducts.length >= MAX_CATALOG_LIMIT) {
-      throw new Error(`Catalog limit of ${MAX_CATALOG_LIMIT.toLocaleString()} products reached. Please remove old items or update existing ones.`);
-    }
 
     const createdProduct: Product = {
       ...newProduct,
@@ -274,17 +305,16 @@ export const ProductStorage = {
       createdAt: new Date().toISOString()
     };
 
+    // Prepend newly added product to the top so it's immediately visible
     const updated = [createdProduct, ...currentProducts];
     this.saveProducts(updated);
     return createdProduct;
   },
 
-  bulkAddProducts(newItems: Array<Omit<Product, 'id' | 'createdAt'>>): { added: number; total: number; capacityReached: boolean } {
+  bulkAddProducts(newItems: Array<Omit<Product, 'id' | 'createdAt'>>): { added: number; total: number } {
     const currentProducts = this.getProducts();
-    const availableSlots = Math.max(0, MAX_CATALOG_LIMIT - currentProducts.length);
-    const toAdd = newItems.slice(0, availableSlots);
 
-    const createdList: Product[] = toAdd.map((item, idx) => ({
+    const createdList: Product[] = newItems.map((item, idx) => ({
       ...item,
       id: `prod-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString()
@@ -295,8 +325,7 @@ export const ProductStorage = {
 
     return {
       added: createdList.length,
-      total: updated.length,
-      capacityReached: updated.length >= MAX_CATALOG_LIMIT
+      total: updated.length
     };
   },
 
@@ -368,7 +397,7 @@ export const ProductStorage = {
         const line = lines[i].trim();
         if (!line) continue;
 
-        // Simple CSV splitter handling quotes
+        // CSV splitter handling quotes
         const cols: string[] = [];
         let inQuotes = false;
         let current = '';
@@ -385,8 +414,6 @@ export const ProductStorage = {
         }
         cols.push(current.trim());
 
-        // Parse fields
-        // Order: ID(0), Title(1), Category(2), Price(3), OriginalPrice(4), InStock(5), IsNewArrival(6), Sizes(7), ImageUrl(8), Description(9)
         const clean = (val: string) => (val || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
 
         const title = clean(cols[1] || cols[0]);
@@ -453,7 +480,7 @@ export const ProductStorage = {
     }
   },
 
-  // Generate batch realistic sample products for testing scale up to 5,000 items
+  // Generate batch realistic sample products for testing scale with unlimited items
   generateDemoBatch(count: number): { added: number; total: number } {
     const categories: Product['category'][] = [
       'Traditional Sarees',
