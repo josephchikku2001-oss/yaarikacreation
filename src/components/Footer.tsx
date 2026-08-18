@@ -1,7 +1,7 @@
 import React from 'react';
 import { Phone, MessageCircle, Truck, Shield, Heart, Sparkles, MapPin, Instagram, Facebook } from 'lucide-react';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
-import yaarikaLogo from '../assets/images/official_ya_3d_embossed_logo_1786124560431.jpg';
+import yaarikaLogo from '../assets/images/regenerated_image_1787038044756.png';
 
 interface FooterProps {
   onOpenAdmin: () => void;
@@ -37,18 +37,20 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
         </div>
 
         {/* Center Copyright with Logo */}
-        <div className="flex items-center gap-3 text-center">
-          <img 
-            src={yaarikaLogo} 
-            alt="Yaarika Logo" 
-            className="w-9 h-9 rounded-md border border-[#4A0E17] object-contain bg-[#4A0E17] flex-shrink-0 p-0.5"
-            referrerPolicy="no-referrer"
-          />
-          <div>
-            <p className="text-[10px] uppercase tracking-widest font-bold text-[#4A0E17]">
+        <div className="flex items-center gap-3.5 text-center">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-[#D4AF37] overflow-hidden bg-[#4A0E17] flex-shrink-0 flex items-center justify-center p-1 shadow-md">
+            <img 
+              src={yaarikaLogo} 
+              alt="Yaarika Logo" 
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <div className="text-left">
+            <p className="text-[11px] sm:text-xs uppercase tracking-widest font-bold text-[#4A0E17]">
               © {new Date().getFullYear()} Yaarika Collections • Traditional &amp; Fusion Wear
             </p>
-            <p className="text-[9px] text-[#4A0E17]/70 mt-0.5">
+            <p className="text-[10px] text-[#4A0E17]/80 mt-0.5">
               WhatsApp Desk: +91 99103 96693 / +91 99955 92722
             </p>
           </div>

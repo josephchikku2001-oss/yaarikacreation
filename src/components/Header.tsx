@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Heart, Shield, Phone, Sparkles, Menu, X, ShoppingBag } from 'lucide-react';
 import { CategoryType, ViewMode } from '../types';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
-import yaarikaLogo from '../assets/images/official_ya_3d_embossed_logo_1786124560431.jpg';
+import yaarikaLogo from '../assets/images/regenerated_image_1787038042349.png';
 
 interface HeaderProps {
   activeCategory: CategoryType;
@@ -79,23 +79,22 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Centered Brand Title with Monogram Logo */}
           <div 
-            className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 cursor-pointer select-none group mx-auto text-center" 
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 cursor-pointer select-none group mx-auto text-center" 
             onClick={() => onSetViewMode('catalog')}
           >
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 border-[#D4AF37] shadow-lg group-hover:scale-105 transition-transform bg-[#32080F] flex-shrink-0 flex items-center justify-center p-0.5">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-22 lg:h-22 rounded-2xl overflow-hidden border-2 border-[#D4AF37] shadow-xl group-hover:scale-105 transition-transform bg-[#4A0E17] flex-shrink-0 flex items-center justify-center p-1.5">
               <img 
                 src={yaarikaLogo} 
                 alt="Yaarika Collections Logo" 
-                className="w-full h-full object-contain rounded-lg border border-[#050505]"
-                style={{ borderColor: '#050505' }}
+                className="w-full h-full object-contain drop-shadow-md"
                 referrerPolicy="no-referrer"
               />
             </div>
             <div className="text-center sm:text-left">
-              <h1 style={{ fontFamily: 'Georgia, serif' }} className="text-2xl sm:text-3xl lg:text-4xl italic font-extrabold tracking-tight text-[#D4AF37] leading-none drop-shadow-sm">
+              <h1 style={{ fontFamily: 'Georgia, serif' }} className="text-3xl sm:text-4xl lg:text-5xl italic font-extrabold tracking-tight text-[#D4AF37] leading-none drop-shadow-sm">
                 Yaarika
               </h1>
-              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.35em] mt-1 text-white/90 font-bold">
+              <p className="text-[11px] sm:text-[13px] uppercase tracking-[0.35em] mt-1.5 text-white/90 font-bold">
                 Collections
               </p>
             </div>
