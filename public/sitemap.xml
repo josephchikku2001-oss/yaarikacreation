@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+  <!-- Homepage / Main Catalog -->
+  <url>
+    <loc>https://yaarikaonlinestore.netlify.app/</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Traditional Sarees Collection -->
+  <url>
+    <loc>https://yaarikaonlinestore.netlify.app/?category=Traditional+Sarees</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Co-ord Sets Collection -->
+  <url>
+    <loc>https://yaarikaonlinestore.netlify.app/?category=Co-ord+Sets</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Churidar Sets Collection -->
+  <url>
+    <loc>https://yaarikaonlinestore.netlify.app/?category=Churidar+Sets</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Fusion & Contemporary Wear -->
+  <url>
+    <loc>https://yaarikaonlinestore.netlify.app/?category=Fusion+%26+Western</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- New Arrivals -->
+  <url>
+    <loc>https://yaarikaonlinestore.netlify.app/?view=new-arrivals</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>

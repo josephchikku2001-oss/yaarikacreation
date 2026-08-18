@@ -1,0 +1,6 @@
+# Robots.txt for Yaarika Online Store
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://yaarikaonlinestore.netlify.app/sitemap.xml
