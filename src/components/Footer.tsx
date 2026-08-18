@@ -1,7 +1,7 @@
 import React from 'react';
 import { Phone, MessageCircle, Truck, Shield, Heart, Sparkles, MapPin, Instagram, Facebook } from 'lucide-react';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
-import yaarikaLogo from '../assets/images/regenerated_image_1787038044756.png';
+import yaarikaLogo from '../assets/images/regenerated_image_1787041751245.png';
 
 interface FooterProps {
   onOpenAdmin: () => void;
@@ -38,11 +38,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
 
         {/* Center Copyright with Logo */}
         <div className="flex items-center gap-3.5 text-center">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-[#D4AF37] overflow-hidden bg-[#4A0E17] flex-shrink-0 flex items-center justify-center p-1 shadow-md">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-[#D4AF37] overflow-hidden bg-[#32080F] flex-shrink-0 flex items-center justify-center shadow-md">
             <img 
               src={yaarikaLogo} 
               alt="Yaarika Logo" 
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover brightness-105 contrast-110"
               referrerPolicy="no-referrer"
             />
           </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Heart, Shield, Phone, Sparkles, Menu, X, ShoppingBag } from 'lucide-react';
 import { CategoryType, ViewMode } from '../types';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
-import yaarikaLogo from '../assets/images/regenerated_image_1787038042349.png';
+import yaarikaLogo from '../assets/images/regenerated_image_1787041748700.png';
 
 interface HeaderProps {
   activeCategory: CategoryType;
@@ -82,11 +82,11 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 cursor-pointer select-none group mx-auto text-center" 
             onClick={() => onSetViewMode('catalog')}
           >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-22 lg:h-22 rounded-2xl overflow-hidden border-2 border-[#D4AF37] shadow-xl group-hover:scale-105 transition-transform bg-[#4A0E17] flex-shrink-0 flex items-center justify-center p-1.5">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-22 lg:h-22 rounded-2xl overflow-hidden border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.35)] group-hover:scale-105 transition-transform bg-[#32080F] flex-shrink-0 flex items-center justify-center">
               <img 
                 src={yaarikaLogo} 
                 alt="Yaarika Collections Logo" 
-                className="w-full h-full object-contain drop-shadow-md"
+                className="w-full h-full object-cover brightness-105 contrast-110"
                 referrerPolicy="no-referrer"
               />
             </div>
