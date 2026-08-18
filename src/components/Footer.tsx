@@ -37,20 +37,20 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
         </div>
 
         {/* Center Copyright with Logo */}
-        <div className="flex items-center gap-3.5 text-center">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-[#D4AF37] overflow-hidden bg-[#32080F] flex-shrink-0 flex items-center justify-center shadow-md">
+        <div className="flex items-center gap-3 text-center">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg border border-[#D4AF37] overflow-hidden bg-[#32080F] flex-shrink-0 flex items-center justify-center p-0.5 shadow-sm">
             <img 
               src={yaarikaLogo} 
               alt="Yaarika Logo" 
-              className="w-full h-full object-cover brightness-105 contrast-110"
+              className="w-full h-full object-contain"
               referrerPolicy="no-referrer"
             />
           </div>
           <div className="text-left">
-            <p className="text-[11px] sm:text-xs uppercase tracking-widest font-bold text-[#4A0E17]">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-wider font-bold text-[#4A0E17]">
               © {new Date().getFullYear()} Yaarika Collections • Traditional &amp; Fusion Wear
             </p>
-            <p className="text-[10px] text-[#4A0E17]/80 mt-0.5">
+            <p className="text-[9px] sm:text-[10px] text-[#4A0E17]/80 mt-0.5">
               WhatsApp Desk: +91 99103 96693 / +91 99955 92722
             </p>
           </div>

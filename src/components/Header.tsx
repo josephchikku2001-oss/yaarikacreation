@@ -79,22 +79,22 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Centered Brand Title with Monogram Logo */}
           <div 
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 cursor-pointer select-none group mx-auto text-center" 
+            className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3.5 cursor-pointer select-none group mx-auto text-center py-0.5" 
             onClick={() => onSetViewMode('catalog')}
           >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-22 lg:h-22 rounded-2xl overflow-hidden border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.35)] group-hover:scale-105 transition-transform bg-[#32080F] flex-shrink-0 flex items-center justify-center">
+            <div className="w-13 h-13 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl overflow-hidden border border-[#D4AF37] shadow-md group-hover:scale-105 transition-transform bg-[#32080F] flex-shrink-0 flex items-center justify-center p-1">
               <img 
                 src={yaarikaLogo} 
                 alt="Yaarika Collections Logo" 
-                className="w-full h-full object-cover brightness-105 contrast-110"
+                className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
               />
             </div>
             <div className="text-center sm:text-left">
-              <h1 style={{ fontFamily: 'Georgia, serif' }} className="text-3xl sm:text-4xl lg:text-5xl italic font-extrabold tracking-tight text-[#D4AF37] leading-none drop-shadow-sm">
+              <h1 style={{ fontFamily: 'Georgia, serif' }} className="text-2xl sm:text-3xl lg:text-[32px] italic font-extrabold tracking-tight text-[#D4AF37] leading-tight drop-shadow-sm">
                 Yaarika
               </h1>
-              <p className="text-[11px] sm:text-[13px] uppercase tracking-[0.35em] mt-1.5 text-white/90 font-bold">
+              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] text-white/90 font-bold">
                 Collections
               </p>
             </div>
