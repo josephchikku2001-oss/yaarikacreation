@@ -120,32 +120,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Product Information */}
-      <div className="flex-1 flex flex-col justify-between">
+      <div className="flex-1 flex flex-col justify-between pt-1">
         <div>
           <div className="flex items-center justify-between gap-1">
             <h4 
               onClick={() => onQuickView(product)}
-              className="text-xs font-bold uppercase tracking-wide truncate cursor-pointer hover:text-[#4A0E17] transition-colors flex-1"
+              className="text-[11px] sm:text-xs md:text-sm font-bold uppercase tracking-wide line-clamp-2 sm:truncate cursor-pointer hover:text-[#4A0E17] transition-colors flex-1"
               title={product.title}
             >
               {product.title}
             </h4>
           </div>
 
-          <div className="flex items-baseline justify-between mt-1">
-            <p style={{ fontFamily: 'Georgia, serif' }} className="text-[#4A0E17] text-sm italic font-bold">
+          <div className="flex items-baseline justify-between mt-1 gap-1">
+            <p style={{ fontFamily: 'Georgia, serif' }} className="text-[#4A0E17] text-xs sm:text-sm md:text-base italic font-extrabold">
               ₹{product.price.toLocaleString('en-IN')}
             </p>
             {product.originalPrice && product.originalPrice > product.price && (
-              <span className="text-[10px] text-gray-400 line-through">
+              <span className="text-[9px] sm:text-[10px] text-gray-400 line-through">
                 ₹{product.originalPrice.toLocaleString('en-IN')}
               </span>
             )}
           </div>
 
           {/* Sizes Pill selector */}
-          <div className="mt-2 pt-2 border-t border-[#D4AF37]/20">
-            <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">
+          <div className="mt-1.5 pt-1.5 border-t border-[#D4AF37]/20">
+            <p className="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-wider mb-1">
               Sizes: <span className="font-bold text-[#4A0E17]">{selectedSize}</span>
             </p>
             <div className="flex flex-wrap gap-1">
@@ -153,7 +153,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <button
                   key={s}
                   onClick={() => setSelectedSize(s)}
-                  className={`text-[9px] px-1.5 py-0.5 uppercase font-bold border transition-colors ${
+                  className={`text-[8px] sm:text-[9px] px-1.5 py-0.5 uppercase font-bold border transition-colors ${
                     selectedSize === s
                       ? 'bg-[#4A0E17] text-[#D4AF37] border-[#D4AF37]'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-[#D4AF37]'
@@ -170,20 +170,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <button
           onClick={() => handleWhatsAppOrder(CONTACT_NUMBERS[0].value)}
           disabled={!product.inStock}
-          className={`mt-3 w-full flex items-center justify-center gap-1.5 py-2 text-[10px] font-bold uppercase rounded-sm transition-all ${
+          className={`mt-2.5 w-full flex items-center justify-center gap-1.5 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-sm transition-all shadow-xs ${
             product.inStock
-              ? 'bg-[#25D366] text-white hover:opacity-90 shadow-sm'
+              ? 'bg-[#25D366] text-white hover:opacity-90 active:scale-98'
               : 'bg-gray-200 text-gray-500 border border-gray-300 cursor-not-allowed'
           }`}
         >
           {product.inStock ? (
             <>
-              <MessageCircle className="w-3.5 h-3.5 fill-current" />
-              <span>Order on WhatsApp</span>
+              <MessageCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current shrink-0" />
+              <span className="truncate">Order on WhatsApp</span>
             </>
           ) : (
             <>
-              <AlertCircle className="w-3.5 h-3.5 text-gray-500" />
+              <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-500 shrink-0" />
               <span>Out of Stock</span>
             </>
           )}

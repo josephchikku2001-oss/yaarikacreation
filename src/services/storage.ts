@@ -4,6 +4,9 @@ import { INITIAL_PRODUCTS } from '../data/initialProducts';
 const KEYS = {
   ADMIN: 'yaarika_admin_credentials_v1',
   PRODUCTS: 'yaarika_products_v1',
+  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v2',
+  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v2',
+  DELETED_IDS: 'yaarika_admin_deleted_ids_v2',
   WISHLIST: 'yaarika_wishlist_v1',
   INQUIRIES: 'yaarika_inquiries_v1'
 };
@@ -204,27 +207,100 @@ function broadcastProductsUpdate(products: Product[]): void {
   }
 }
 
-// Initialize and preload from storage
+// Helper to get/set custom items that survive site updates
+function getStoredCustomProducts(): Product[] {
+  try {
+    const raw = localStorage.getItem(KEYS.CUSTOM_PRODUCTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredCustomProducts(items: Product[]): void {
+  try {
+    localStorage.setItem(KEYS.CUSTOM_PRODUCTS, JSON.stringify(items));
+  } catch (e) {
+    console.warn('Could not persist custom products to localStorage:', e);
+  }
+}
+
+function getStoredCustomEdits(): Record<string, Partial<Product>> {
+  try {
+    const raw = localStorage.getItem(KEYS.CUSTOM_EDITS);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredCustomEdits(edits: Record<string, Partial<Product>>): void {
+  try {
+    localStorage.setItem(KEYS.CUSTOM_EDITS, JSON.stringify(edits));
+  } catch (e) {
+    console.warn('Could not persist edits to localStorage:', e);
+  }
+}
+
+function getStoredDeletedIds(): string[] {
+  try {
+    const raw = localStorage.getItem(KEYS.DELETED_IDS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredDeletedIds(ids: string[]): void {
+  try {
+    localStorage.setItem(KEYS.DELETED_IDS, JSON.stringify(ids));
+  } catch (e) {
+    console.warn('Could not persist deleted IDs to localStorage:', e);
+  }
+}
+
+// Initialize and preload from storage with smart update protection
 function loadInitialCatalog(): Product[] {
   try {
     const data = localStorage.getItem(KEYS.PRODUCTS);
+    const customItems = getStoredCustomProducts();
+    const customEdits = getStoredCustomEdits();
+    const deletedIds = new Set(getStoredDeletedIds());
+
+    let baseCatalog: Product[] = [];
+
     if (data) {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        baseCatalog = parsed;
       }
     }
-  } catch (e) {
-    console.warn('LocalStorage catalog read warning, using defaults:', e);
-  }
 
-  // Seed default initial products
-  try {
-    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
-  } catch {
-    // ignore
+    if (baseCatalog.length === 0) {
+      baseCatalog = INITIAL_PRODUCTS;
+    }
+
+    // Apply edits and deleted IDs to base catalog
+    const processedBase = baseCatalog
+      .filter(p => !deletedIds.has(p.id))
+      .map(p => customEdits[p.id] ? { ...p, ...customEdits[p.id] } as Product : p);
+
+    // Merge custom admin products, ensuring no duplicates
+    const existingIds = new Set(processedBase.map(p => p.id));
+    const uniqueCustom = customItems.filter(p => !existingIds.has(p.id) && !deletedIds.has(p.id));
+
+    const finalCatalog = [...uniqueCustom, ...processedBase];
+
+    // Cache to localStorage
+    try {
+      localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(finalCatalog));
+    } catch {}
+
+    return finalCatalog;
+  } catch (e) {
+    console.warn('LocalStorage catalog read warning, using safe fallback:', e);
+    return INITIAL_PRODUCTS;
   }
-  return INITIAL_PRODUCTS;
 }
 
 export const ProductStorage = {
@@ -305,8 +381,12 @@ export const ProductStorage = {
       createdAt: new Date().toISOString()
     };
 
+    // Permanently record in dedicated custom products storage
+    const customItems = getStoredCustomProducts();
+    saveStoredCustomProducts([createdProduct, ...customItems.filter(p => p.id !== createdProduct.id)]);
+
     // Prepend newly added product to the top so it's immediately visible
-    const updated = [createdProduct, ...currentProducts];
+    const updated = [createdProduct, ...currentProducts.filter(p => p.id !== createdProduct.id)];
     this.saveProducts(updated);
     return createdProduct;
   },
@@ -320,6 +400,10 @@ export const ProductStorage = {
       createdAt: new Date().toISOString()
     }));
 
+    // Permanently record in dedicated custom products storage
+    const customItems = getStoredCustomProducts();
+    saveStoredCustomProducts([...createdList, ...customItems]);
+
     const updated = [...createdList, ...currentProducts];
     this.saveProducts(updated);
 
@@ -332,28 +416,69 @@ export const ProductStorage = {
   updateProduct(updatedProduct: Product): void {
     const currentProducts = this.getProducts();
     const updated = currentProducts.map(p => p.id === updatedProduct.id ? updatedProduct : p);
+
+    // If it's a custom product, update it in custom store
+    const customItems = getStoredCustomProducts();
+    const isCustom = customItems.some(p => p.id === updatedProduct.id);
+    if (isCustom) {
+      saveStoredCustomProducts(customItems.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    } else {
+      // Record modification in custom edits store
+      const customEdits = getStoredCustomEdits();
+      customEdits[updatedProduct.id] = updatedProduct;
+      saveStoredCustomEdits(customEdits);
+    }
+
     this.saveProducts(updated);
   },
 
   toggleStockStatus(id: string): Product[] {
     const currentProducts = this.getProducts();
-    const updated = currentProducts.map(p => p.id === id ? { ...p, inStock: !p.inStock } : p);
-    this.saveProducts(updated);
-    return updated;
+    const target = currentProducts.find(p => p.id === id);
+    if (target) {
+      this.updateProduct({ ...target, inStock: !target.inStock });
+      return this.getProducts();
+    }
+    return currentProducts;
   },
 
   deleteProduct(id: string): void {
     const currentProducts = this.getProducts();
     const updated = currentProducts.filter(p => p.id !== id);
+
+    // Remove from custom store
+    const customItems = getStoredCustomProducts();
+    saveStoredCustomProducts(customItems.filter(p => p.id !== id));
+
+    // Remove from edits
+    const customEdits = getStoredCustomEdits();
+    delete customEdits[id];
+    saveStoredCustomEdits(customEdits);
+
+    // Add to deleted IDs list so it never reappears on future website code updates
+    const deletedIds = getStoredDeletedIds();
+    if (!deletedIds.includes(id)) {
+      saveStoredDeletedIds([...deletedIds, id]);
+    }
+
     this.saveProducts(updated);
   },
 
+  getCustomProductsCount(): number {
+    return getStoredCustomProducts().length;
+  },
+
   resetToDefault(): Product[] {
+    // Clear custom modifications
+    saveStoredCustomProducts([]);
+    saveStoredCustomEdits({});
+    saveStoredDeletedIds([]);
     this.saveProducts(INITIAL_PRODUCTS);
     return INITIAL_PRODUCTS;
   },
 
   clearAllProducts(): void {
+    saveStoredCustomProducts([]);
     this.saveProducts([]);
   },
 

@@ -326,7 +326,8 @@ export default function App() {
             </div>
           ) : (
             <div className="space-y-10">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {/* Product Grid: 2 Items Per Row */}
+              <div className="grid grid-cols-2 gap-3.5 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
                 {filteredProducts.slice(0, visibleCount).map((product) => (
                   <ProductCard
                     key={product.id}
