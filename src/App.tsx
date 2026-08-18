@@ -139,7 +139,11 @@ export default function App() {
         {/* HERO BANNER (Only on Catalog Mode & No Active Search) */}
         {viewMode === 'catalog' && !searchQuery && (
           <Hero 
-            onShopClick={() => {
+            onSelectCategory={(cat) => {
+              setActiveCategory(cat);
+            }}
+            onShopClick={(cat) => {
+              if (cat) setActiveCategory(cat);
               const el = document.getElementById('catalog-grid');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }} 
