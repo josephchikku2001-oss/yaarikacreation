@@ -44,3 +44,6 @@ export interface InquiryLog {
 }
 
 export type ViewMode = 'catalog' | 'admin' | 'wishlist';
+
+export type SortOption = 'featured' | 'price_low_high' | 'price_high_low' | 'newest';
+export type PriceRangeOption = 'all' | 'under_1000' | '1000_2000' | '2000_3500' | 'above_3500';

@@ -6,7 +6,8 @@ import { ProductDetailModal } from './components/ProductDetailModal';
 import { AdminPortal } from './components/AdminPortal';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
-import { CategoryType, Product, ViewMode } from './types';
+import { CategoryType, Product, ViewMode, SortOption, PriceRangeOption, SizeType } from './types';
+import { CatalogFilterBar } from './components/CatalogFilterBar';
 import { ProductStorage, WishlistStorage, AdminStorage, PRODUCTS_UPDATED_EVENT } from './services/storage';
 import { 
   FirestoreProductService, 
@@ -17,6 +18,7 @@ import {
   Sparkles, 
   Heart, 
   Filter, 
+  SlidersHorizontal,
   MessageCircle, 
   ArrowRight, 
   ShieldCheck, 
@@ -63,6 +65,12 @@ export default function App() {
   const [isFirestoreConnected, setIsFirestoreConnected] = useState<boolean>(false);
   const [isSyncingFirestore, setIsSyncingFirestore] = useState<boolean>(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(false);
+
+  // New Filters & Sorting States
+  const [selectedSort, setSelectedSort] = useState<SortOption>('featured');
+  const [selectedSize, setSelectedSize] = useState<SizeType | 'All'>('All');
+  const [selectedPriceRange, setSelectedPriceRange] = useState<PriceRangeOption>('all');
+  const [inStockOnly, setInStockOnly] = useState<boolean>(false);
 
   // Synchronize URL and listen for secret admin route / hash changes & hotkeys
   useEffect(() => {
@@ -177,7 +185,7 @@ export default function App() {
   // Reset pagination when active filter changes
   useEffect(() => {
     setVisibleCount(24);
-  }, [activeCategory, searchQuery, viewMode]);
+  }, [activeCategory, searchQuery, viewMode, selectedSort, selectedSize, selectedPriceRange, inStockOnly]);
 
   // Dynamic Manual Re-fetch from Firebase Firestore
   const handleSyncFirestore = useCallback(async () => {
@@ -244,9 +252,9 @@ export default function App() {
     setToastMessage(msg);
   };
 
-  // Filtered Products Calculation
+  // Filtered & Sorted Products Calculation
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    const result = products.filter((p) => {
       // Category Filter
       if (activeCategory === 'New Arrivals') {
         if (!p.isNewArrival) return false;
@@ -272,9 +280,69 @@ export default function App() {
         }
       }
 
+      // Size Filter (e.g. 'M', 'L', 'XL', 'Free Size')
+      if (selectedSize !== 'All') {
+        if (!p.sizes || !p.sizes.includes(selectedSize)) {
+          return false;
+        }
+      }
+
+      // In-Stock Only Filter
+      if (inStockOnly && !p.inStock) {
+        return false;
+      }
+
+      // Price Range Filter
+      if (selectedPriceRange === 'under_1000') {
+        if (p.price >= 1000) return false;
+      } else if (selectedPriceRange === '1000_2000') {
+        if (p.price < 1000 || p.price > 2000) return false;
+      } else if (selectedPriceRange === '2000_3500') {
+        if (p.price < 2000 || p.price > 3500) return false;
+      } else if (selectedPriceRange === 'above_3500') {
+        if (p.price <= 3500) return false;
+      }
+
       return true;
     });
-  }, [products, activeCategory, searchQuery, wishlist, viewMode]);
+
+    // Apply Sorting
+    if (selectedSort === 'price_low_high') {
+      result.sort((a, b) => a.price - b.price);
+    } else if (selectedSort === 'price_high_low') {
+      result.sort((a, b) => b.price - a.price);
+    } else if (selectedSort === 'newest') {
+      result.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
+
+    return result;
+  }, [
+    products, 
+    activeCategory, 
+    searchQuery, 
+    wishlist, 
+    viewMode, 
+    selectedSize, 
+    selectedPriceRange, 
+    inStockOnly, 
+    selectedSort
+  ]);
+
+  const hasActiveFilters = useMemo(() => {
+    return selectedSize !== 'All' || selectedPriceRange !== 'all' || inStockOnly || selectedSort !== 'featured';
+  }, [selectedSize, selectedPriceRange, inStockOnly, selectedSort]);
+
+  const handleResetFilters = useCallback(() => {
+    setSelectedSize('All');
+    setSelectedPriceRange('all');
+    setInStockOnly(false);
+    setSelectedSort('featured');
+    setToastMessage('Filters cleared');
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FDFCF8] text-[#1A1A1A]">
@@ -316,11 +384,11 @@ export default function App() {
         )}
 
         {/* CATALOG / WISHLIST CONTAINER */}
-        <div id="catalog-grid" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <div id="catalog-grid" className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 md:py-12 w-full">
           
           {/* Section Heading & Category Filters */}
-          <div className="mb-8">
-            <div className="flex justify-between items-end mb-6">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex justify-between items-end mb-4 sm:mb-6">
               <h3 style={{ fontFamily: 'Georgia, serif' }} className="text-2xl italic font-bold text-[#1A1A1A]">
                 {viewMode === 'wishlist'
                   ? 'Wishlist Collection'
@@ -415,12 +483,28 @@ export default function App() {
             </div>
           )}
 
+          {/* Interactive Filters & Sorting Control Bar (Price, Size, Stock, Sorting) */}
+          <CatalogFilterBar
+            selectedSort={selectedSort}
+            onSelectSort={setSelectedSort}
+            selectedSize={selectedSize}
+            onSelectSize={setSelectedSize}
+            selectedPriceRange={selectedPriceRange}
+            onSelectPriceRange={setSelectedPriceRange}
+            inStockOnly={inStockOnly}
+            onToggleInStockOnly={setInStockOnly}
+            totalFilteredCount={filteredProducts.length}
+            totalProductsCount={products.length}
+            onResetFilters={handleResetFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+
           {/* SKELETON LOADING OR PRODUCTS GRID */}
           {isLoadingCatalog && filteredProducts.length === 0 ? (
-            <div className="grid grid-cols-2 gap-3.5 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-6 md:gap-8 max-w-5xl mx-auto w-full items-stretch">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="bg-white p-3 border border-gray-200 shadow-sm animate-pulse flex flex-col justify-between">
-                  <div className="aspect-[3/4] bg-gray-200 mb-3 rounded-xs"></div>
+                <div key={i} className="bg-white p-2.5 sm:p-3.5 border border-gray-200 shadow-sm animate-pulse flex flex-col justify-between">
+                  <div className="w-full aspect-[3/4] bg-gray-200 mb-3 rounded-xs"></div>
                   <div className="space-y-2">
                     <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                     <div className="h-3 bg-gray-200 rounded w-1/2"></div>
@@ -469,19 +553,46 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pt-3">
+                  <div className="pt-3 flex flex-wrap justify-center gap-2">
+                    {hasActiveFilters && (
+                      <button
+                        onClick={handleResetFilters}
+                        className="px-4 py-2 rounded-xl bg-white border border-rose-300 text-rose-800 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Clear Filters</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setViewMode('catalog');
                         setActiveCategory('All');
                         setSearchQuery('');
+                        handleResetFilters();
                       }}
-                      className="px-6 py-2.5 rounded-xl bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#32080F] text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center gap-2 mx-auto"
+                      className="px-5 py-2 rounded-xl bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#32080F] text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center gap-2"
                     >
                       <RotateCcw className="w-4 h-4 text-[#D4AF37]" />
-                      <span>Clear Search &amp; Show All Products</span>
+                      <span>Show All Products</span>
                     </button>
                   </div>
+                </>
+              ) : hasActiveFilters ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-amber-50 text-[#D4AF37] flex items-center justify-center mx-auto border border-[#D4AF37]">
+                    <SlidersHorizontal className="w-8 h-8 text-[#4A0E17]" />
+                  </div>
+                  <h3 className="font-cinzel text-lg font-bold text-[#32080F]">No Items Match Your Filters</h3>
+                  <p className="text-xs text-gray-600">
+                    തിരഞ്ഞെടുത്ത സൈസ് (Size) അല്ലെങ്കിൽ വില പരിധിക്ക് (Price Range) അനുയോജ്യമായ ഉൽപ്പന്നങ്ങൾ ഇപ്പോൾ ലഭ്യമല്ല. ഫിൽട്ടറുകൾ മാറ്റി വീണ്ടും നോക്കാവുന്നതാണ്.
+                  </p>
+                  <button
+                    onClick={handleResetFilters}
+                    className="px-6 py-2.5 rounded-full bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#32080F] text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center gap-2 mx-auto"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>Clear All Filters (ഫിൽട്ടറുകൾ മാറ്റുക)</span>
+                  </button>
                 </>
               ) : viewMode === 'wishlist' ? (
                 <>
@@ -529,7 +640,7 @@ export default function App() {
           ) : (
             <div className="space-y-10">
               {/* Product Grid: 2 Items Per Row */}
-              <div className="grid grid-cols-2 gap-3.5 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-6 md:gap-8 max-w-5xl mx-auto w-full items-stretch">
                 {filteredProducts.slice(0, visibleCount).map((product) => (
                   <ProductCard
                     key={product.id}
