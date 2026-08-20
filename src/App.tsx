@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
@@ -8,36 +8,154 @@ import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
 import { CategoryType, Product, ViewMode } from './types';
 import { ProductStorage, WishlistStorage, AdminStorage, PRODUCTS_UPDATED_EVENT } from './services/storage';
-import { Sparkles, Heart, Filter, MessageCircle, ArrowRight, ShieldCheck, Check, SearchX, AlertTriangle, RotateCcw, Search } from 'lucide-react';
+import { 
+  FirestoreProductService, 
+  isFirebaseConfigured, 
+  getSavedFirebaseConfig 
+} from './services/firebase';
+import { 
+  Sparkles, 
+  Heart, 
+  Filter, 
+  MessageCircle, 
+  ArrowRight, 
+  ShieldCheck, 
+  Check, 
+  SearchX, 
+  AlertTriangle, 
+  RotateCcw, 
+  Search,
+  Cloud,
+  RefreshCw,
+  Boxes
+} from 'lucide-react';
 import { CONTACT_NUMBERS } from './utils/whatsapp';
+
+// Helper to verify if the URL points to secret admin dashboard
+const checkIsAdminUrl = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const search = window.location.search.toLowerCase();
+  return (
+    path.includes('admin-dashboard') ||
+    path.endsWith('/admin') ||
+    path.includes('/admin/') ||
+    hash.includes('admin-dashboard') ||
+    hash.includes('#/admin') ||
+    hash.includes('#admin') ||
+    search.includes('admin-dashboard') ||
+    search.includes('admin=true') ||
+    search.includes('portal=admin')
+  );
+};
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(() => ProductStorage.getProducts());
   const [activeCategory, setActiveCategory] = useState<CategoryType>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('catalog');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => checkIsAdminUrl() ? 'admin' : 'catalog');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isAdminSetupComplete, setIsAdminSetupComplete] = useState<boolean>(false);
   const [visibleCount, setVisibleCount] = useState<number>(24);
+  const [isFirestoreConnected, setIsFirestoreConnected] = useState<boolean>(false);
+  const [isSyncingFirestore, setIsSyncingFirestore] = useState<boolean>(false);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(false);
 
-  // Initial Data Load & Real-Time Sync with Admin Portal
+  // Synchronize URL and listen for secret admin route / hash changes & hotkeys
   useEffect(() => {
-    // 1. Initial Synchronous & Asynchronous IndexedDB fetch
+    const handleUrlChange = () => {
+      if (checkIsAdminUrl()) {
+        setViewMode('admin');
+      } else if (window.location.hash === '#wishlist') {
+        setViewMode('wishlist');
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+
+    // Secret Admin Keyboard Shortcut: Ctrl + Shift + A (or Alt + Shift + A)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        setViewMode((prev) => {
+          const next = prev === 'admin' ? 'catalog' : 'admin';
+          if (next === 'admin') {
+            window.history.pushState(null, '', '/admin-dashboard');
+            setToastMessage('🔒 Yaarika Admin Portal Opened (Protected by Password)');
+          } else {
+            window.history.pushState(null, '', '/');
+          }
+          return next;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Initial Data Load & Dynamic Real-Time Fetch from Firebase Firestore
+  useEffect(() => {
+    // 1. Initial Synchronous & Local Cache fetch for zero-delay rendering
     const syncProducts = ProductStorage.getProducts();
     setProducts(syncProducts);
     setWishlist(WishlistStorage.getWishlist());
     setIsAdminSetupComplete(AdminStorage.isSetupComplete());
 
-    // 2. Asynchronous fetch from IndexedDB to ensure full unlimited catalog is loaded
-    ProductStorage.loadProductsAsync().then((allProducts) => {
-      if (allProducts && allProducts.length > 0) {
-        setProducts(allProducts);
-      }
-    });
+    let unsubscribeFirestore: (() => void) | null = null;
 
-    // 3. Listen to instant broadcast events when admin adds/edits/deletes products
+    // 2. Check if Firebase Firestore is configured
+    if (isFirebaseConfigured()) {
+      setIsFirestoreConnected(true);
+      setIsLoadingCatalog(syncProducts.length === 0);
+
+      // A. Perform immediate dynamic fetch from Firestore
+      FirestoreProductService.fetchProducts()
+        .then((cloudProducts) => {
+          if (cloudProducts && cloudProducts.length > 0) {
+            setProducts(cloudProducts);
+            ProductStorage.saveProducts(cloudProducts);
+          }
+        })
+        .catch((err) => {
+          console.warn('Initial dynamic Firestore product fetch warning:', err);
+        })
+        .finally(() => {
+          setIsLoadingCatalog(false);
+        });
+
+      // B. Set up Real-Time Dynamic Listener for live updates across all devices
+      unsubscribeFirestore = FirestoreProductService.subscribeToProducts(
+        (liveProducts) => {
+          if (liveProducts && liveProducts.length > 0) {
+            setProducts(liveProducts);
+            ProductStorage.saveProducts(liveProducts);
+            setIsLoadingCatalog(false);
+          }
+        },
+        (error) => {
+          console.warn('Firestore live subscription fallback:', error);
+        }
+      );
+    } else {
+      // If Firebase is not yet configured, load from local IndexedDB storage
+      ProductStorage.loadProductsAsync().then((allProducts) => {
+        if (allProducts && allProducts.length > 0) {
+          setProducts(allProducts);
+        }
+      });
+    }
+
+    // 3. Listen to instant broadcast events when admin adds/edits/deletes products locally
     const handleProductsUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<Product[]>;
       if (customEvent.detail && Array.isArray(customEvent.detail)) {
@@ -50,6 +168,9 @@ export default function App() {
     window.addEventListener(PRODUCTS_UPDATED_EVENT, handleProductsUpdated);
     return () => {
       window.removeEventListener(PRODUCTS_UPDATED_EVENT, handleProductsUpdated);
+      if (unsubscribeFirestore) {
+        unsubscribeFirestore();
+      }
     };
   }, []);
 
@@ -58,11 +179,55 @@ export default function App() {
     setVisibleCount(24);
   }, [activeCategory, searchQuery, viewMode]);
 
+  // Dynamic Manual Re-fetch from Firebase Firestore
+  const handleSyncFirestore = useCallback(async () => {
+    if (!isFirebaseConfigured()) {
+      // Fallback local refresh
+      setIsSyncingFirestore(true);
+      const items = await ProductStorage.loadProductsAsync();
+      setProducts(items);
+      setIsSyncingFirestore(false);
+      setToastMessage(`Refreshed catalog (${items.length} items from local cache)`);
+      return;
+    }
+
+    setIsSyncingFirestore(true);
+    try {
+      const cloudProducts = await FirestoreProductService.fetchProducts();
+      if (cloudProducts && cloudProducts.length > 0) {
+        setProducts(cloudProducts);
+        ProductStorage.saveProducts(cloudProducts);
+        setToastMessage(`✨ Successfully loaded ${cloudProducts.length} live products dynamically from Firebase Firestore!`);
+      } else {
+        setToastMessage('Firestore product collection is currently empty.');
+      }
+    } catch (err: any) {
+      console.error('Manual Firestore sync error:', err);
+      setToastMessage('Could not connect to Firestore. Displaying local catalog cache.');
+    } finally {
+      setIsSyncingFirestore(false);
+    }
+  }, []);
+
   const refreshProducts = () => {
-    ProductStorage.loadProductsAsync().then((allProducts) => {
-      setProducts(allProducts);
-    });
+    if (isFirebaseConfigured()) {
+      FirestoreProductService.fetchProducts()
+        .then((cloudProducts) => {
+          if (cloudProducts && cloudProducts.length > 0) {
+            setProducts(cloudProducts);
+            ProductStorage.saveProducts(cloudProducts);
+          }
+        })
+        .catch(() => {
+          ProductStorage.loadProductsAsync().then(setProducts);
+        });
+    } else {
+      ProductStorage.loadProductsAsync().then((allProducts) => {
+        setProducts(allProducts);
+      });
+    }
     setIsAdminSetupComplete(AdminStorage.isSetupComplete());
+    setIsFirestoreConnected(isFirebaseConfigured());
   };
 
   const handleToggleWishlist = (productId: string) => {
@@ -164,14 +329,38 @@ export default function App() {
                   : `${activeCategory} Collection`}
               </h3>
               <div className="h-[1px] flex-1 bg-[#D4AF37]/30 mx-4 sm:mx-8 mb-2"></div>
-              {viewMode === 'catalog' && (
+              
+              <div className="flex items-center gap-2">
+                {isFirestoreConnected && (
+                  <div 
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold shadow-xs"
+                    title="Live Firestore Real-Time Catalog Connected"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                    <span className="hidden sm:inline">Live Firestore Sync</span>
+                    <span className="sm:hidden">Live</span>
+                  </div>
+                )}
+
                 <button
-                  onClick={() => setActiveCategory('All')}
-                  className="text-[10px] uppercase tracking-widest text-[#4A0E17] font-bold hover:text-[#D4AF37] transition-colors whitespace-nowrap"
+                  onClick={handleSyncFirestore}
+                  disabled={isSyncingFirestore}
+                  className="p-1.5 px-2.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:text-[#4A0E17] hover:border-[#D4AF37] text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
+                  title="Fetch latest product updates dynamically from Firestore"
                 >
-                  View All Products
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingFirestore ? 'animate-spin text-[#4A0E17]' : 'text-gray-500'}`} />
+                  <span className="hidden sm:inline">{isSyncingFirestore ? 'Syncing...' : 'Sync Firestore'}</span>
                 </button>
-              )}
+
+                {viewMode === 'catalog' && (
+                  <button
+                    onClick={() => setActiveCategory('All')}
+                    className="text-[10px] uppercase tracking-widest text-[#4A0E17] font-bold hover:text-[#D4AF37] transition-colors whitespace-nowrap pl-2 border-l border-gray-300"
+                  >
+                    View All
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Quick Category Tabs */}
@@ -226,8 +415,21 @@ export default function App() {
             </div>
           )}
 
-          {/* PRODUCTS GRID */}
-          {filteredProducts.length === 0 ? (
+          {/* SKELETON LOADING OR PRODUCTS GRID */}
+          {isLoadingCatalog && filteredProducts.length === 0 ? (
+            <div className="grid grid-cols-2 gap-3.5 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-white p-3 border border-gray-200 shadow-sm animate-pulse flex flex-col justify-between">
+                  <div className="aspect-[3/4] bg-gray-200 mb-3 rounded-xs"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-8 bg-gray-200 rounded mt-2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className={`text-center py-12 px-6 sm:px-8 rounded-3xl border p-8 space-y-4 max-w-lg mx-auto shadow-md transition-all ${
               searchQuery ? 'bg-rose-50/40 border-2 border-rose-200' : 'bg-white border-dashed border-[#D4AF37]/40'
             }`}>
@@ -392,7 +594,12 @@ export default function App() {
       {/* ADMIN PORTAL OVERLAY */}
       {viewMode === 'admin' && (
         <AdminPortal
-          onClose={() => setViewMode('catalog')}
+          onClose={() => {
+            setViewMode('catalog');
+            if (checkIsAdminUrl()) {
+              window.history.pushState(null, '', '/');
+            }
+          }}
           onToast={showToast}
           onRefreshProducts={refreshProducts}
         />

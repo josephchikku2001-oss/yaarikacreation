@@ -28,6 +28,26 @@ export const Header: React.FC<HeaderProps> = ({
   totalResultsCount,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoTapCount, setLogoTapCount] = useState(0);
+  const [lastTapTime, setLastTapTime] = useState(0);
+
+  const handleLogoClick = () => {
+    const now = Date.now();
+    if (now - lastTapTime < 800) {
+      const nextCount = logoTapCount + 1;
+      setLogoTapCount(nextCount);
+      if (nextCount >= 5) {
+        setLogoTapCount(0);
+        window.history.pushState(null, '', '/admin-dashboard');
+        onSetViewMode('admin');
+        return;
+      }
+    } else {
+      setLogoTapCount(1);
+    }
+    setLastTapTime(now);
+    onSetViewMode('catalog');
+  };
 
   const categories: CategoryType[] = [
     'All',
@@ -80,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Centered Brand Title with Monogram Logo */}
           <div 
             className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3.5 cursor-pointer select-none group mx-auto text-center py-0.5" 
-            onClick={() => onSetViewMode('catalog')}
+            onClick={handleLogoClick}
           >
             <div className="w-13 h-13 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl overflow-hidden border border-[#D4AF37] shadow-md group-hover:scale-105 transition-transform bg-[#32080F] flex-shrink-0 flex items-center justify-center p-1">
               <img 

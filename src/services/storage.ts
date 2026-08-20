@@ -1,5 +1,6 @@
 import { Product, AdminCredentials, InquiryLog } from '../types';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
+import { FirestoreProductService, isFirebaseConfigured } from './firebase';
 
 const KEYS = {
   ADMIN: 'yaarika_admin_credentials_v1',
@@ -388,6 +389,14 @@ export const ProductStorage = {
     // Prepend newly added product to the top so it's immediately visible
     const updated = [createdProduct, ...currentProducts.filter(p => p.id !== createdProduct.id)];
     this.saveProducts(updated);
+
+    // Sync to Firestore if configured
+    if (isFirebaseConfigured()) {
+      FirestoreProductService.saveProduct(createdProduct).catch(err => {
+        console.warn('Background Firestore save warning:', err);
+      });
+    }
+
     return createdProduct;
   },
 
@@ -406,6 +415,13 @@ export const ProductStorage = {
 
     const updated = [...createdList, ...currentProducts];
     this.saveProducts(updated);
+
+    // Sync to Firestore if configured
+    if (isFirebaseConfigured()) {
+      FirestoreProductService.syncAllToFirestore(createdList).catch(err => {
+        console.warn('Background Firestore bulk sync warning:', err);
+      });
+    }
 
     return {
       added: createdList.length,
@@ -430,6 +446,13 @@ export const ProductStorage = {
     }
 
     this.saveProducts(updated);
+
+    // Sync to Firestore if configured
+    if (isFirebaseConfigured()) {
+      FirestoreProductService.saveProduct(updatedProduct).catch(err => {
+        console.warn('Background Firestore update warning:', err);
+      });
+    }
   },
 
   toggleStockStatus(id: string): Product[] {
@@ -462,6 +485,13 @@ export const ProductStorage = {
     }
 
     this.saveProducts(updated);
+
+    // Sync deletion to Firestore if configured
+    if (isFirebaseConfigured()) {
+      FirestoreProductService.deleteProduct(id).catch(err => {
+        console.warn('Background Firestore delete warning:', err);
+      });
+    }
   },
 
   getCustomProductsCount(): number {
@@ -491,7 +521,7 @@ export const ProductStorage = {
   // Export catalog as CSV
   exportCatalogCSV(): string {
     const products = this.getProducts();
-    const headers = ['ID', 'Title', 'Category', 'Price', 'OriginalPrice', 'InStock', 'IsNewArrival', 'Sizes', 'ImageUrl', 'Description'];
+    const headers = ['ID', 'Title', 'Category', 'Price', 'OriginalPrice', 'InStock', 'StockCount', 'SizeStock', 'IsNewArrival', 'Sizes', 'ImageUrl', 'Description'];
     const rows = products.map(p => [
       `"${p.id}"`,
       `"${(p.title || '').replace(/"/g, '""')}"`,
@@ -499,6 +529,8 @@ export const ProductStorage = {
       p.price,
       p.originalPrice || '',
       p.inStock ? 'TRUE' : 'FALSE',
+      p.stockCount !== undefined ? p.stockCount : '',
+      `"${p.sizeStock ? JSON.stringify(p.sizeStock).replace(/"/g, '""') : ''}"`,
       p.isNewArrival ? 'TRUE' : 'FALSE',
       `"${p.sizes.join('|')}"`,
       `"${(p.imageUrl || '').replace(/"/g, '""')}"`,
@@ -548,11 +580,36 @@ export const ProductStorage = {
         const price = parseFloat(clean(cols[3])) || 1499;
         const originalPrice = parseFloat(clean(cols[4])) || (price + 500);
         const inStock = clean(cols[5]).toUpperCase() !== 'FALSE';
-        const isNewArrival = clean(cols[6]).toUpperCase() === 'TRUE';
-        const rawSizes = clean(cols[7]);
+        
+        let stockCount: number | undefined = undefined;
+        let sizeStock: Record<string, number> | undefined = undefined;
+        
+        // Handle format with StockCount and SizeStock columns or standard columns
+        let isNewArrival = false;
+        let rawSizes = '';
+        let imageUrl = '';
+        let description = '';
+
+        if (cols.length >= 11) {
+          stockCount = cols[6] ? parseInt(clean(cols[6])) : undefined;
+          const rawSizeStock = clean(cols[7]);
+          if (rawSizeStock) {
+            try {
+              sizeStock = JSON.parse(rawSizeStock);
+            } catch {}
+          }
+          isNewArrival = clean(cols[8]).toUpperCase() === 'TRUE';
+          rawSizes = clean(cols[9]);
+          imageUrl = clean(cols[10]) || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+          description = clean(cols[11]) || `${title} from Yaarika Collections.`;
+        } else {
+          isNewArrival = clean(cols[6]).toUpperCase() === 'TRUE';
+          rawSizes = clean(cols[7]);
+          imageUrl = clean(cols[8]) || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+          description = clean(cols[9]) || `${title} from Yaarika Collections.`;
+        }
+
         const sizes = rawSizes ? rawSizes.split('|').map(s => s.trim() as Product['sizes'][number]) : ['Free Size' as const];
-        const imageUrl = clean(cols[8]) || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
-        const description = clean(cols[9]) || `${title} from Yaarika Collections.`;
 
         itemsToImport.push({
           title,
@@ -560,6 +617,8 @@ export const ProductStorage = {
           price,
           originalPrice,
           inStock,
+          stockCount: isNaN(stockCount as number) ? undefined : stockCount,
+          sizeStock: sizeStock || {},
           isNewArrival,
           sizes: sizes.length > 0 ? sizes : ['Free Size'],
           imageUrl,

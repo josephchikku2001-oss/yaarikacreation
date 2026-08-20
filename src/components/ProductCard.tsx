@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Eye, Tag, Sparkles, AlertCircle } from 'lucide-react';
+import { Heart, MessageCircle, Eye, Tag, Sparkles, AlertCircle, PackageX } from 'lucide-react';
 import { Product, SizeType } from '../types';
 import { createWhatsAppOrderLink, CONTACT_NUMBERS } from '../utils/whatsapp';
 import { InquiryStorage } from '../services/storage';
+import { isProductInStock, getSizeStockCount, isSizeInStock, getProductTotalStock } from '../utils/inventory';
 
 interface ProductCardProps {
   product: Product;
@@ -19,16 +20,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onQuickView,
   onToast
 }) => {
-  // Default selected size is first size available
-  const [selectedSize, setSelectedSize] = useState<SizeType>(product.sizes[0] || 'Free Size');
+  // Find first size that is in stock, or fallback to first size
+  const firstInStockSize = product.sizes.find(s => isSizeInStock(product, s)) || product.sizes[0] || 'Free Size';
+  const [selectedSize, setSelectedSize] = useState<SizeType>(firstInStockSize);
+
+  const isOverallInStock = isProductInStock(product);
+  const isSelectedSizeInStock = isProductInStock(product, selectedSize);
+  const totalUnits = getProductTotalStock(product);
+  const selectedSizeUnits = getSizeStockCount(product, selectedSize);
 
   const discountPercent = product.originalPrice && product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
   const handleWhatsAppOrder = (phone: string = CONTACT_NUMBERS[0].value) => {
-    if (!product.inStock) {
-      onToast('This product is currently out of stock.');
+    if (!isOverallInStock || !isSelectedSizeInStock) {
+      onToast(`Sorry, ${product.title} (${selectedSize}) is currently out of stock.`);
       return;
     }
 
@@ -48,7 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <div className={`group bg-[#FDFCF8] p-3 border transition-all duration-300 flex flex-col justify-between shadow-sm hover:shadow-md ${
-      product.inStock ? 'border-[#D4AF37]/20 hover:border-[#D4AF37]/60' : 'border-rose-200 bg-rose-50/20'
+      isOverallInStock ? 'border-[#D4AF37]/20 hover:border-[#D4AF37]/60' : 'border-rose-200 bg-rose-50/15'
     }`}>
       
       {/* Top Aspect Ratio Frame */}
@@ -59,17 +66,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           src={product.imageUrl}
           alt={product.title}
           className={`w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 cursor-pointer ${
-            !product.inStock ? 'opacity-80 grayscale-[20%]' : ''
+            !isOverallInStock ? 'opacity-75 grayscale-[30%]' : ''
           }`}
           loading="lazy"
           onClick={() => onQuickView(product)}
         />
 
         {/* Out of Stock Overlay Ribbon / Badge */}
-        {!product.inStock && (
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center p-2 z-10 pointer-events-none">
-            <span className="bg-rose-900/90 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1.5 border border-rose-300/60 shadow-lg flex items-center gap-1.5 rounded-sm">
-              <AlertCircle className="w-3.5 h-3.5 text-rose-300" />
+        {!isOverallInStock && (
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-2 z-10 pointer-events-none">
+            <span className="bg-rose-900/95 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1.5 border border-rose-400 shadow-xl flex items-center gap-1.5 rounded-sm">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-300 shrink-0" />
               OUT OF STOCK
             </span>
           </div>
@@ -77,8 +84,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Top Right Badge */}
         <div className="absolute top-3 right-3 flex flex-col gap-1 z-10">
-          {!product.inStock ? (
-            <span className="bg-rose-800 text-white text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider border border-rose-400">
+          {!isOverallInStock ? (
+            <span className="bg-rose-800 text-white text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider border border-rose-400 shadow-sm">
               SOLD OUT
             </span>
           ) : (
@@ -89,8 +96,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </span>
               )}
               {discountPercent > 0 && (
-                <span className="bg-[#D4AF37] text-[#4A0E17] text-[9px] font-bold px-2 py-0.5 uppercase">
+                <span className="bg-[#D4AF37] text-[#4A0E17] text-[9px] font-bold px-2 py-0.5 uppercase shadow-xs">
                   {discountPercent}% OFF
+                </span>
+              )}
+              {totalUnits > 0 && totalUnits <= 3 && (
+                <span className="bg-amber-600 text-white text-[8px] font-extrabold px-1.5 py-0.5 uppercase rounded-xs shadow-xs">
+                  Only {totalUnits} left
                 </span>
               )}
             </>
@@ -143,40 +155,63 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           </div>
 
-          {/* Sizes Pill selector */}
+          {/* Sizes Pill selector with Stock availability */}
           <div className="mt-1.5 pt-1.5 border-t border-[#D4AF37]/20">
-            <p className="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-wider mb-1">
-              Sizes: <span className="font-bold text-[#4A0E17]">{selectedSize}</span>
-            </p>
+            <div className="flex items-center justify-between text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-wider mb-1">
+              <span>Sizes: <strong className="text-[#4A0E17]">{selectedSize}</strong></span>
+              {isOverallInStock && (
+                <span className={`font-semibold ${selectedSizeUnits > 0 ? (selectedSizeUnits <= 2 ? 'text-amber-700 font-bold' : 'text-emerald-700') : 'text-rose-600 font-bold'}`}>
+                  {selectedSizeUnits > 0 ? `${selectedSizeUnits} in stock` : 'Size Out of Stock'}
+                </span>
+              )}
+            </div>
+            
             <div className="flex flex-wrap gap-1">
-              {product.sizes.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedSize(s)}
-                  className={`text-[8px] sm:text-[9px] px-1.5 py-0.5 uppercase font-bold border transition-colors ${
-                    selectedSize === s
-                      ? 'bg-[#4A0E17] text-[#D4AF37] border-[#D4AF37]'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-[#D4AF37]'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+              {product.sizes.map((s) => {
+                const sizeAvailable = isSizeInStock(product, s);
+                const isSelected = selectedSize === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setSelectedSize(s)}
+                    className={`text-[8px] sm:text-[9px] px-1.5 py-0.5 uppercase font-bold border transition-colors relative ${
+                      isSelected
+                        ? (sizeAvailable 
+                            ? 'bg-[#4A0E17] text-[#D4AF37] border-[#D4AF37]' 
+                            : 'bg-rose-900 text-white border-rose-900')
+                        : (sizeAvailable 
+                            ? 'bg-white text-gray-700 border-gray-200 hover:border-[#D4AF37]' 
+                            : 'bg-gray-100 text-gray-400 border-gray-200 line-through decoration-rose-500')
+                    }`}
+                    title={sizeAvailable ? `${s} (In Stock)` : `${s} (Out of Stock)`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Order on WhatsApp CTA or Out of Stock */}
+        {/* Order on WhatsApp CTA or Out of Stock Button (Automatically disabled when out of stock) */}
         <button
           onClick={() => handleWhatsAppOrder(CONTACT_NUMBERS[0].value)}
-          disabled={!product.inStock}
+          disabled={!isOverallInStock || !isSelectedSizeInStock}
+          aria-disabled={!isOverallInStock || !isSelectedSizeInStock}
           className={`mt-2.5 w-full flex items-center justify-center gap-1.5 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold uppercase rounded-sm transition-all shadow-xs ${
-            product.inStock
-              ? 'bg-[#25D366] text-white hover:opacity-90 active:scale-98'
-              : 'bg-gray-200 text-gray-500 border border-gray-300 cursor-not-allowed'
+            isOverallInStock && isSelectedSizeInStock
+              ? 'bg-[#25D366] text-white hover:opacity-90 active:scale-98 cursor-pointer'
+              : 'bg-gray-200 text-gray-500 border border-gray-300 cursor-not-allowed opacity-75'
           }`}
+          title={
+            !isOverallInStock 
+              ? 'Product is currently Out of Stock' 
+              : !isSelectedSizeInStock 
+                ? `Size ${selectedSize} is Out of Stock` 
+                : 'Order directly via WhatsApp'
+          }
         >
-          {product.inStock ? (
+          {isOverallInStock && isSelectedSizeInStock ? (
             <>
               <MessageCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current shrink-0" />
               <span className="truncate">Order on WhatsApp</span>
@@ -184,7 +219,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           ) : (
             <>
               <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-500 shrink-0" />
-              <span>Out of Stock</span>
+              <span>
+                {!isOverallInStock ? 'Out of Stock' : `Size ${selectedSize} Out of Stock`}
+              </span>
             </>
           )}
         </button>

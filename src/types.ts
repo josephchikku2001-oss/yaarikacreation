@@ -15,6 +15,8 @@ export interface Product {
   price: number;
   originalPrice?: number;
   sizes: SizeType[];
+  stockCount?: number; // Total units in inventory
+  sizeStock?: Partial<Record<SizeType, number>>; // Specific stock count per size (e.g., M: 10, L: 5, XL: 0, XXL: 2)
   description: string;
   imageUrl: string;
   fabricDetails?: string;

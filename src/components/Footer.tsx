@@ -56,24 +56,21 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
           </div>
         </div>
 
-        {/* Right Admin Link */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onOpenAdmin}
-            className="text-[10px] uppercase font-bold text-[#4A0E17] hover:text-[#D4AF37] transition-colors underline decoration-[#4A0E17]/40"
-          >
-            Admin
-          </button>
-          <div className="h-4 w-[1px] bg-[#4A0E17]/20"></div>
+        {/* Right WhatsApp Helpdesk */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] uppercase font-bold text-[#4A0E17]/80 hidden sm:inline">
+            Direct Support:
+          </span>
           <div className="flex gap-2">
             <a 
               href={`https://wa.me/${CONTACT_NUMBERS[0].value}`}
               target="_blank" 
               rel="noopener noreferrer"
-              className="w-6 h-6 bg-[#25D366] rounded-full flex items-center justify-center text-white hover:opacity-90 transition-opacity"
-              title="Order via WhatsApp"
+              className="px-3 py-1 bg-[#25D366] text-white rounded-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs"
+              title="Order or Inquire via WhatsApp"
             >
               <MessageCircle className="w-3.5 h-3.5 fill-current" />
+              <span>WhatsApp Us</span>
             </a>
           </div>
         </div>
