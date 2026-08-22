@@ -23,6 +23,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   // Find first size that is in stock, or fallback to first size
   const firstInStockSize = product.sizes.find(s => isSizeInStock(product, s)) || product.sizes[0] || 'Free Size';
   const [selectedSize, setSelectedSize] = useState<SizeType>(firstInStockSize);
+  const [imgSrc, setImgSrc] = useState<string>(product.imageUrl);
+
+  // Synchronize imgSrc if product changes
+  React.useEffect(() => {
+    setImgSrc(product.imageUrl);
+  }, [product.imageUrl]);
 
   const isOverallInStock = isProductInStock(product);
   const isSelectedSizeInStock = isProductInStock(product, selectedSize);
@@ -63,8 +69,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         
         {/* Main Product Image */}
         <img
-          src={product.imageUrl}
+          src={imgSrc || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800'}
           alt={product.title}
+          onError={() => {
+            setImgSrc('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
+          }}
           className={`w-full h-full object-cover object-top block group-hover:scale-105 transition-transform duration-500 cursor-pointer ${
             !isOverallInStock ? 'opacity-75 grayscale-[30%]' : ''
           }`}

@@ -26,6 +26,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const firstInStockSize = product.sizes.find(s => isSizeInStock(product, s)) || product.sizes[0] || 'Free Size';
   const [selectedSize, setSelectedSize] = useState<SizeType>(firstInStockSize);
   const [copied, setCopied] = useState(false);
+  const [imgSrc, setImgSrc] = useState<string>(product.imageUrl);
+
+  React.useEffect(() => {
+    if (product) {
+      setImgSrc(product.imageUrl);
+      const inStockSize = product.sizes.find(s => isSizeInStock(product, s)) || product.sizes[0] || 'Free Size';
+      setSelectedSize(inStockSize);
+    }
+  }, [product]);
 
   const isOverallInStock = isProductInStock(product);
   const isSelectedSizeInStock = isProductInStock(product, selectedSize);
@@ -78,8 +87,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <div className="md:w-1/2 relative bg-[#F3F0E9] p-4 flex items-center justify-center border-b md:border-b-0 md:border-r border-[#D4AF37]/30">
           <div className="relative w-full aspect-[3/4] overflow-hidden border border-[#D4AF37]/30">
             <img
-              src={product.imageUrl}
+              src={imgSrc || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800'}
               alt={product.title}
+              onError={() => {
+                setImgSrc('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
+              }}
               className={`w-full h-full object-cover object-top ${!isOverallInStock ? 'opacity-75 grayscale-[25%]' : ''}`}
             />
             
