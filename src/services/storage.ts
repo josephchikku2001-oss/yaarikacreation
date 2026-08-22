@@ -286,11 +286,15 @@ function loadInitialCatalog(): Product[] {
       .filter(p => !deletedIds.has(p.id))
       .map(p => customEdits[p.id] ? { ...p, ...customEdits[p.id] } as Product : p);
 
+    // Merge any new default initial products that haven't been deleted
+    const processedIds = new Set(processedBase.map(p => p.id));
+    const newInitialProducts = INITIAL_PRODUCTS.filter(p => !processedIds.has(p.id) && !deletedIds.has(p.id));
+
     // Merge custom admin products, ensuring no duplicates
-    const existingIds = new Set(processedBase.map(p => p.id));
+    const existingIds = new Set([...processedBase, ...newInitialProducts].map(p => p.id));
     const uniqueCustom = customItems.filter(p => !existingIds.has(p.id) && !deletedIds.has(p.id));
 
-    const finalCatalog = [...uniqueCustom, ...processedBase];
+    const finalCatalog = [...uniqueCustom, ...processedBase, ...newInitialProducts];
 
     // Cache to localStorage
     try {
