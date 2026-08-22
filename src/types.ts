@@ -6,7 +6,7 @@ export type CategoryType =
   | 'Fusion Wear' 
   | 'New Arrivals';
 
-export type SizeType = 'Free Size' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL';
+export type SizeType = 'Free Size' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL';
 
 export interface Product {
   id: string;

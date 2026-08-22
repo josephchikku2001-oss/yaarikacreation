@@ -33,10 +33,12 @@ import {
   Boxes,
   Package,
   Minus,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Product, CategoryType, SizeType, InquiryLog } from '../types';
 import { AdminStorage, ProductStorage, InquiryStorage } from '../services/storage';
+import { ExcelProductUploader } from './ExcelProductUploader';
 import { 
   FirebaseAuthService, 
   FirestoreProductService, 
@@ -78,7 +80,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [isFirebaseAccountCreation, setIsFirebaseAccountCreation] = useState<boolean>(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'bulk' | 'inquiries' | 'settings'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'excel' | 'bulk' | 'inquiries' | 'settings'>('products');
 
   // Product List
   const [products, setProducts] = useState<Product[]>(ProductStorage.getProducts());
@@ -1056,6 +1058,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('excel')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'excel'
+                      ? 'bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-amber-50 border border-amber-300'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Excel (.xlsx) Sheet Upload</span>
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-extrabold uppercase">
+                    New
+                  </span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('bulk')}
                   className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                     activeTab === 'bulk'
@@ -1161,7 +1178,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+                      <button
+                        onClick={() => setActiveTab('excel')}
+                        className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#4A0E17] border border-[#D4AF37] text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                        title="Upload Excel (.xlsx/.xls) or CSV Sheet with Product Images"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Upload Excel (.xlsx)</span>
+                      </button>
+
                       <button
                         onClick={handleExportCSV}
                         className="px-3 py-2 rounded-xl bg-white text-gray-800 hover:bg-gray-100 border border-gray-300 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
@@ -1780,9 +1806,56 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               )}
 
-              {/* TAB 3: BULK IMPORT TOOLS */}
+              {/* TAB 3: EXCEL SHEET UPLOAD */}
+              {activeTab === 'excel' && (
+                <div className="max-w-4xl mx-auto space-y-6">
+                  <ExcelProductUploader
+                    onImportComplete={(count) => {
+                      const fresh = ProductStorage.getProducts();
+                      setProducts(fresh);
+                      onRefreshProducts();
+                      onToast(`Imported ${count} products from Excel sheet!`);
+                    }}
+                    onToast={onToast}
+                    onRefreshCatalog={() => {
+                      const fresh = ProductStorage.getProducts();
+                      setProducts(fresh);
+                      onRefreshProducts();
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* TAB 4: BULK IMPORT TOOLS */}
               {activeTab === 'bulk' && (
                 <div className="space-y-6 max-w-4xl mx-auto">
+                  
+                  {/* Excel Sheet Card Banner */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-[#D4AF37] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#4A0E17] text-[#D4AF37] flex items-center justify-center shrink-0">
+                        <FileSpreadsheet className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-cinzel text-sm font-bold text-[#4A0E17]">
+                          Have an Excel Sheet (.xlsx / .xls)?
+                        </h4>
+                        <p className="text-xs text-gray-600">
+                          Use our dedicated Excel Uploader with file drag-and-drop, template download, and photo previews.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('excel')}
+                      className="px-4 py-2 bg-[#4A0E17] text-[#D4AF37] hover:bg-[#32080F] border border-[#D4AF37] rounded-xl text-xs font-bold shrink-0 shadow-sm flex items-center gap-1.5"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Open Excel Sheet Uploader</span>
+                    </button>
+                  </div>
+
                   <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                     <h3 className="font-cinzel text-lg font-bold text-[#4A0E17] flex items-center gap-2">
                       <Database className="w-5 h-5 text-amber-600" />
