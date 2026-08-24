@@ -30,6 +30,7 @@ import imgBlackChikankari from '../assets/images/black_chikankari_churidar_17875
 import imgAjrakhMaroon from '../assets/images/ajrakh_maroon_coord_1787561846795.jpg';
 import imgKalamkariFlared from '../assets/images/kalamkari_flared_coord_1787561863322.jpg';
 import imgCrinkleLime from '../assets/images/crinkle_knit_lime_coord_1787561886577.jpg';
+import imgWineJacquard from '../assets/images/wine_jacquard_coord_1787589912164.jpg';
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
@@ -465,6 +466,36 @@ export const INITIAL_PRODUCTS: Product[] = [
     inStock: true,
     featured: false,
     isNewArrival: false,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'prod-wine-jacquard-coord',
+    title: 'Wine Jacquard Co-ord Set',
+    category: 'Co-ord Sets',
+    price: 945,
+    originalPrice: 1050,
+    sizes: ['M', 'L'],
+    description: 'Sophisticated deep Wine Purple woven textured Jacquard long button-down kurta tunic with matching straight trousers.',
+    imageUrl: imgWineJacquard,
+    fabricDetails: 'Textured Jacquard Cotton with Button Placket',
+    inStock: true,
+    featured: true,
+    isNewArrival: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'prod-bottle-green-netcotta-churidar',
+    title: 'Bottle Green Net Cotta Churidar Set',
+    category: 'Churidar Sets',
+    price: 855,
+    originalPrice: 850,
+    sizes: ['M', 'L', 'XL', 'XXL'],
+    description: 'Stunning deep Bottle Green Net Cotta straight churidar suit with intricate floral embroidery on the neckline, matching trousers, and lightweight embroidered dupatta.',
+    imageUrl: imgPureCottonTeal,
+    fabricDetails: 'Premium Net Cotta with Neck Embroidery & Dupatta',
+    inStock: true,
+    featured: true,
+    isNewArrival: true,
     createdAt: new Date().toISOString()
   }
 ];
