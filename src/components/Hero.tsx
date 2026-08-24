@@ -5,6 +5,7 @@ import { CategoryType } from '../types';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
 
 // Generated editorial banners matching user mockups
+import bannerOnamOffer from '../assets/images/onam_offer_sale_banner_1787560876663.jpg';
 import bannerSareesDesigner from '../assets/images/banner_kerala_sarees_designer_1787042820901.jpg';
 import bannerCoordsFusion from '../assets/images/banner_contemporary_coords_1787042768365.jpg';
 import bannerSareesChuridar from '../assets/images/banner_traditional_sarees_churidar_1787042789127.jpg';
@@ -21,6 +22,15 @@ interface HeroSlide {
 }
 
 const HERO_SLIDES: HeroSlide[] = [
+  {
+    id: 'grand-onam-offer',
+    title: 'Grand Onam Offer Sale • Flat 10% OFF',
+    subtitle: 'Celebrating Onam with pure Kasavu handloom sarees, designer churidars & festive festive outfits. 5 Days Special Festive Offer (23 - 28 August) - ഓണം ഓഫർ വിൽപന!',
+    category: 'Traditional Sarees',
+    image: bannerOnamOffer,
+    badge: 'ഓണം ഓഫർ വിൽപന • 10% OFF',
+    themeColor: '#4A0E17'
+  },
   {
     id: 'sarees-designer',
     title: 'Traditional Kerala Sarees & Designer Wear',

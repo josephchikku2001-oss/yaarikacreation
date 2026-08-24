@@ -4,10 +4,10 @@ import { FirestoreProductService, isFirebaseConfigured } from './firebase';
 
 const KEYS = {
   ADMIN: 'yaarika_admin_credentials_v1',
-  PRODUCTS: 'yaarika_products_v1',
-  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v2',
-  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v2',
-  DELETED_IDS: 'yaarika_admin_deleted_ids_v2',
+  PRODUCTS: 'yaarika_products_v4',
+  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v4',
+  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v4',
+  DELETED_IDS: 'yaarika_admin_deleted_ids_v4',
   WISHLIST: 'yaarika_wishlist_v1',
   INQUIRIES: 'yaarika_inquiries_v1'
 };
@@ -154,7 +154,7 @@ export const AdminStorage = {
 
 // PRODUCT CATALOG MANAGEMENT SERVICES (Supports UNLIMITED Products with IndexedDB & Memory Cache)
 const IDB_CONFIG = {
-  DB_NAME: 'yaarika_boutique_db_v2',
+  DB_NAME: 'yaarika_boutique_db_v4',
   STORE_NAME: 'catalog_products',
   VERSION: 1
 };
