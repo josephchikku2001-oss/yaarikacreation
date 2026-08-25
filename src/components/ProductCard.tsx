@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Eye, Tag, Sparkles, AlertCircle, PackageX } from 'lucide-react';
+import { Heart, MessageCircle, Eye, Tag, Sparkles, AlertCircle, PackageX, Images } from 'lucide-react';
 import { Product, SizeType } from '../types';
 import { createWhatsAppOrderLink, CONTACT_NUMBERS } from '../utils/whatsapp';
 import { InquiryStorage } from '../services/storage';
@@ -23,12 +23,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   // Find first size that is in stock, or fallback to first size
   const firstInStockSize = product.sizes.find(s => isSizeInStock(product, s)) || product.sizes[0] || 'Free Size';
   const [selectedSize, setSelectedSize] = useState<SizeType>(firstInStockSize);
-  const [imgSrc, setImgSrc] = useState<string>(product.imageUrl);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const productImages = product.images && product.images.length > 0
+    ? product.images.filter(Boolean)
+    : [product.imageUrl];
+
+  const primaryImage = productImages[0] || product.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+  const secondaryImage = productImages[1] || primaryImage;
+  const hasMultipleImages = productImages.length > 1;
+
+  const [imgSrc, setImgSrc] = useState<string>(primaryImage);
 
   // Synchronize imgSrc if product changes
   React.useEffect(() => {
-    setImgSrc(product.imageUrl);
-  }, [product.imageUrl]);
+    setImgSrc(primaryImage);
+  }, [primaryImage]);
 
   const isOverallInStock = isProductInStock(product);
   const isSelectedSizeInStock = isProductInStock(product, selectedSize);
@@ -65,21 +75,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }`}>
       
       {/* Top Aspect Ratio Frame */}
-      <div className="w-full aspect-[3/4] bg-[#F3F0E9] border border-[#D4AF37]/20 relative mb-2.5 overflow-hidden flex items-center justify-center">
+      <div 
+        className="w-full aspect-[3/4] bg-[#F3F0E9] border border-[#D4AF37]/20 relative mb-2.5 overflow-hidden flex items-center justify-center cursor-pointer"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => onQuickView(product)}
+      >
         
-        {/* Main Product Image */}
+        {/* Main Product Image with Secondary Image on Hover */}
         <img
-          src={imgSrc || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800'}
+          src={hasMultipleImages && isHovered ? secondaryImage : (imgSrc || primaryImage)}
           alt={product.title}
           onError={() => {
             setImgSrc('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
           }}
-          className={`w-full h-full object-cover object-top block group-hover:scale-105 transition-transform duration-500 cursor-pointer ${
+          className={`w-full h-full object-cover object-top block transition-all duration-500 group-hover:scale-105 ${
             !isOverallInStock ? 'opacity-75 grayscale-[30%]' : ''
           }`}
           loading="lazy"
-          onClick={() => onQuickView(product)}
         />
+
+        {/* Multi-Photo Count Indicator Badge */}
+        {hasMultipleImages && (
+          <div className="absolute bottom-2 right-2 bg-black/65 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-white/20 shadow-xs z-10">
+            <Images className="w-3 h-3 text-[#D4AF37]" />
+            <span>{productImages.length}</span>
+          </div>
+        )}
 
         {/* Out of Stock Overlay Ribbon / Badge */}
         {!isOverallInStock && (

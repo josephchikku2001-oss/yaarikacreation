@@ -1,5 +1,21 @@
-import React, { useState } from 'react';
-import { X, MessageCircle, Phone, Sparkles, Check, Share2, Heart, Truck, ShieldCheck, AlertTriangle, PackageCheck, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  X, 
+  MessageCircle, 
+  Phone, 
+  Sparkles, 
+  Check, 
+  Share2, 
+  Heart, 
+  Truck, 
+  ShieldCheck, 
+  AlertTriangle, 
+  PackageCheck, 
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Images
+} from 'lucide-react';
 import { Product, SizeType } from '../types';
 import { createWhatsAppOrderLink, CONTACT_NUMBERS } from '../utils/whatsapp';
 import { InquiryStorage } from '../services/storage';
@@ -22,19 +38,41 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   if (!product) return null;
 
+  // Assemble all available product images (up to 5)
+  const productImages = React.useMemo(() => {
+    if (product.images && product.images.length > 0) {
+      return product.images.filter(Boolean);
+    }
+    return product.imageUrl ? [product.imageUrl] : [];
+  }, [product]);
+
   // Initialize selected size with first in-stock size if possible
   const firstInStockSize = product.sizes.find(s => isSizeInStock(product, s)) || product.sizes[0] || 'Free Size';
   const [selectedSize, setSelectedSize] = useState<SizeType>(firstInStockSize);
   const [copied, setCopied] = useState(false);
-  const [imgSrc, setImgSrc] = useState<string>(product.imageUrl);
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (product) {
-      setImgSrc(product.imageUrl);
+      setActiveImageIndex(0);
       const inStockSize = product.sizes.find(s => isSizeInStock(product, s)) || product.sizes[0] || 'Free Size';
       setSelectedSize(inStockSize);
     }
   }, [product]);
+
+  const currentDisplayImage = productImages[activeImageIndex] || product.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+
+  const handleNextImage = () => {
+    if (productImages.length > 1) {
+      setActiveImageIndex(prev => (prev + 1) % productImages.length);
+    }
+  };
+
+  const handlePrevImage = () => {
+    if (productImages.length > 1) {
+      setActiveImageIndex(prev => (prev - 1 + productImages.length) % productImages.length);
+    }
+  };
 
   const isOverallInStock = isProductInStock(product);
   const isSelectedSizeInStock = isProductInStock(product, selectedSize);
@@ -83,26 +121,56 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <X className="w-4 h-4" />
         </button>
 
-        {/* Left Column: Image */}
-        <div className="md:w-1/2 relative bg-[#F3F0E9] p-4 flex items-center justify-center border-b md:border-b-0 md:border-r border-[#D4AF37]/30">
-          <div className="relative w-full aspect-[3/4] overflow-hidden border border-[#D4AF37]/30">
+        {/* Left Column: Image & Gallery */}
+        <div className="md:w-1/2 relative bg-[#F3F0E9] p-4 flex flex-col items-center justify-between border-b md:border-b-0 md:border-r border-[#D4AF37]/30">
+          
+          {/* Main Large Image Stage */}
+          <div className="relative w-full aspect-[3/4] overflow-hidden border border-[#D4AF37]/30 bg-black/5 rounded-xs">
             <img
-              src={imgSrc || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800'}
-              alt={product.title}
-              onError={() => {
-                setImgSrc('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
-              }}
-              className={`w-full h-full object-cover object-top ${!isOverallInStock ? 'opacity-75 grayscale-[25%]' : ''}`}
+              src={currentDisplayImage}
+              alt={`${product.title} - View ${activeImageIndex + 1}`}
+              className={`w-full h-full object-cover object-top transition-opacity duration-300 ${!isOverallInStock ? 'opacity-75 grayscale-[25%]' : ''}`}
             />
             
             {product.isNewArrival && (
-              <span className="absolute top-3 left-3 bg-[#4A0E17] text-[#D4AF37] text-[9px] font-bold px-2.5 py-1 border border-[#D4AF37] uppercase tracking-widest flex items-center gap-1 shadow-md">
+              <span className="absolute top-3 left-3 bg-[#4A0E17] text-[#D4AF37] text-[9px] font-bold px-2.5 py-1 border border-[#D4AF37] uppercase tracking-widest flex items-center gap-1 shadow-md z-10">
                 <Sparkles className="w-3 h-3 text-[#D4AF37]" /> New Edit
               </span>
             )}
 
+            {/* Photo Counter Pill (e.g. 2 / 5) */}
+            {productImages.length > 1 && (
+              <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 z-10 border border-white/20">
+                <Images className="w-3 h-3 text-[#D4AF37]" />
+                <span>{activeImageIndex + 1} / {productImages.length}</span>
+              </span>
+            )}
+
+            {/* Left / Right Carousel Arrow Buttons */}
+            {productImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all z-10 border border-white/30 backdrop-blur-xs cursor-pointer active:scale-95"
+                  title="Previous image"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all z-10 border border-white/30 backdrop-blur-xs cursor-pointer active:scale-95"
+                  title="Next image"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+
             {!isOverallInStock && (
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-3 pointer-events-none">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-3 pointer-events-none z-10">
                 <span className="bg-rose-900/95 text-white text-xs font-black uppercase tracking-widest px-4 py-2 border border-rose-400 shadow-2xl flex items-center gap-2 rounded-sm">
                   <AlertCircle className="w-4 h-4 text-rose-300" />
                   OUT OF STOCK
@@ -110,6 +178,40 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
             )}
           </div>
+
+          {/* Thumbnail Gallery (Shows up to 5 clickable photo thumbnails) */}
+          {productImages.length > 1 && (
+            <div className="w-full pt-3 flex items-center justify-center gap-2 overflow-x-auto">
+              {productImages.map((img, idx) => {
+                const isActive = idx === activeImageIndex;
+                return (
+                  <button
+                    key={`${idx}-${img.slice(0, 30)}`}
+                    type="button"
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={`relative w-12 h-14 rounded overflow-hidden border-2 transition-all flex-shrink-0 cursor-pointer ${
+                      isActive 
+                        ? 'border-[#D4AF37] ring-2 ring-[#4A0E17] scale-105 shadow-md' 
+                        : 'border-gray-300 opacity-65 hover:opacity-100 hover:border-gray-500'
+                    }`}
+                    title={`View photo ${idx + 1}`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    {idx === 0 && (
+                      <span className="absolute bottom-0 inset-x-0 bg-[#4A0E17]/80 text-[#D4AF37] text-[7px] font-bold text-center uppercase tracking-tighter py-0.2">
+                        Cover
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
         </div>
 
         {/* Right Column: Details & Order CTA */}

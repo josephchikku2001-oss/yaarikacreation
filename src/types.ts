@@ -19,6 +19,7 @@ export interface Product {
   sizeStock?: Partial<Record<SizeType, number>>; // Specific stock count per size (e.g., M: 10, L: 5, XL: 0, XXL: 2)
   description: string;
   imageUrl: string;
+  images?: string[]; // Up to 5 images per product
   fabricDetails?: string;
   inStock: boolean;
   featured?: boolean;

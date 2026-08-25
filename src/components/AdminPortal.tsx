@@ -39,6 +39,7 @@ import {
 import { Product, CategoryType, SizeType, InquiryLog } from '../types';
 import { AdminStorage, ProductStorage, InquiryStorage } from '../services/storage';
 import { ExcelProductUploader } from './ExcelProductUploader';
+import { MultiLayerProductCreator } from './MultiLayerProductCreator';
 import { 
   FirebaseAuthService, 
   FirestoreProductService, 
@@ -100,6 +101,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [deleteProductCandidate, setDeleteProductCandidate] = useState<Product | null>(null);
 
   // Add / Edit Product Form State
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState<string>('');
   const [formCategory, setFormCategory] = useState<CategoryType>('Traditional Sarees');
@@ -527,6 +529,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Populate Edit Form
   const handleEditProductClick = (p: Product) => {
+    setEditingProduct(p);
     setEditingProductId(p.id);
     setFormTitle(p.title);
     setFormCategory(p.category);
@@ -559,6 +562,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Reset form
   const resetForm = () => {
+    setEditingProduct(null);
     setEditingProductId(null);
     setFormTitle('');
     setFormCategory('Traditional Sarees');
@@ -1046,7 +1050,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('add')}
+                  onClick={() => { resetForm(); setActiveTab('add'); }}
                   className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                     activeTab === 'add'
                       ? 'bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] shadow-md'
@@ -1054,7 +1058,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   }`}
                 >
                   <Plus className="w-4 h-4 text-emerald-600" />
-                  <span>{editingProductId ? 'Edit Product' : 'Add New Product'}</span>
+                  <span>{editingProduct ? 'Edit Product' : 'Add New Product (Multi-Layer)'}</span>
                 </button>
 
                 <button
@@ -1238,14 +1242,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               return (
                                 <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
                                   <td className="p-3 flex items-center gap-3">
-                                    <img
-                                      src={p.imageUrl}
-                                      alt={p.title}
-                                      className="w-12 h-14 object-cover rounded-lg border border-gray-200 bg-gray-100 shrink-0"
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
-                                      }}
-                                    />
+                                    <div className="relative shrink-0">
+                                      <img
+                                        src={p.imageUrl}
+                                        alt={p.title}
+                                        className="w-12 h-14 object-cover rounded-lg border border-gray-200 bg-gray-100"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+                                        }}
+                                      />
+                                      {p.images && p.images.length > 1 && (
+                                        <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[#D4AF37] text-[8px] font-extrabold px-1 rounded shadow-xs">
+                                          {p.images.length}P
+                                        </span>
+                                      )}
+                                    </div>
                                     <div>
                                       <div className="font-bold text-gray-900">{p.title}</div>
                                       <div className="text-[10px] text-gray-500 line-clamp-1 max-w-xs">{p.description}</div>
@@ -1418,392 +1429,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               )}
 
-              {/* TAB 2: ADD / EDIT PRODUCT FORM */}
+              {/* TAB 2: MULTI-LAYER ADD / EDIT PRODUCT */}
               {activeTab === 'add' && (
-                <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm max-w-3xl mx-auto space-y-6">
-                  
-                  <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-                    <div>
-                      <h3 className="font-cinzel text-lg font-bold text-[#4A0E17] flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-[#D4AF37]" />
-                        <span>{editingProductId ? 'Edit Product Details' : 'Add New Product to Catalog'}</span>
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Product data will be saved directly to Firebase Firestore Database &amp; Local Storage.
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => { resetForm(); setActiveTab('products'); }}
-                      className="text-xs text-gray-500 hover:text-gray-800 underline"
-                    >
-                      Cancel &amp; Back
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleSaveProduct} className="space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      
-                      {/* Product Title */}
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                          Product Title *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Lotus Print Striped Tissue Saree"
-                          value={formTitle}
-                          onChange={(e) => setFormTitle(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#4A0E17] focus:outline-none"
-                        />
-                      </div>
-
-                      {/* Category */}
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                          Category *
-                        </label>
-                        <select
-                          value={formCategory}
-                          onChange={(e) => setFormCategory(e.target.value as CategoryType)}
-                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#4A0E17] focus:outline-none font-medium"
-                        >
-                          {availableCategories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Offer Price / Selling Price */}
-                      <div>
-                        <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1">
-                          Offer Price (Selling Price ₹) *
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          placeholder="e.g. 1400"
-                          value={formPrice}
-                          onChange={(e) => setFormPrice(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-emerald-50/50 border border-emerald-300 rounded-xl text-sm font-bold text-[#4A0E17] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        />
-                      </div>
-
-                      {/* Original Price (MRP) */}
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                          Original Price (MRP ₹ with Strikethrough)
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="e.g. 1800"
-                          value={formOriginalPrice}
-                          onChange={(e) => setFormOriginalPrice(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#4A0E17] focus:outline-none"
-                        />
-                      </div>
-
-                      {/* Available Sizes (M, L, XL, XXL) */}
-                      <div className="md:col-span-2 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Available Sizes * (Click to toggle)
-                          </label>
-                          <button
-                            type="button"
-                            onClick={handleSelectStandardSizes}
-                            className="text-[11px] text-[#4A0E17] font-bold hover:underline"
-                          >
-                            + Quick Select (M, L, XL, XXL)
-                          </button>
-                        </div>
-
-                        {/* Quick M, L, XL, XXL chips */}
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {allSizesList.map(s => {
-                            const isSelected = formSizes.includes(s);
-                            const isPopular = ['M', 'L', 'XL', 'XXL'].includes(s);
-                            return (
-                              <button
-                                type="button"
-                                key={s}
-                                onClick={() => toggleSizeInForm(s)}
-                                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all flex items-center gap-1.5 ${
-                                  isSelected
-                                    ? 'bg-[#4A0E17] text-[#D4AF37] border-[#D4AF37] shadow-sm'
-                                    : isPopular
-                                    ? 'bg-amber-50 text-amber-900 border-amber-200 hover:border-amber-400'
-                                    : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-300'
-                                }`}
-                              >
-                                <span>{s}</span>
-                                {isSelected && <Check className="w-3.5 h-3.5 text-[#D4AF37]" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-[11px] text-gray-500">
-                          Selected sizes: <strong className="text-gray-900">{formSizes.join(', ')}</strong>
-                        </p>
-                      </div>
-
-                      {/* Stock Count for each size / product */}
-                      <div className="md:col-span-2 bg-amber-50/50 border border-amber-200/80 p-4 rounded-2xl space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-[#4A0E17] uppercase tracking-wider">
-                              <Boxes className="w-4 h-4 text-[#D4AF37]" />
-                              <span>Stock Count per Size (Inventory Management) *</span>
-                            </div>
-                            <p className="text-[11px] text-gray-600">
-                              Set inventory quantity for each selected size. When stock hits 0, it displays 'Out of Stock' and disables WhatsApp ordering.
-                            </p>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => handleSetAllSizesStock(5)}
-                              className="px-2 py-1 rounded-lg bg-white border border-amber-300 text-[10px] font-bold text-amber-900 hover:bg-amber-100"
-                            >
-                              Set All to 5
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSetAllSizesStock(10)}
-                              className="px-2 py-1 rounded-lg bg-white border border-amber-300 text-[10px] font-bold text-amber-900 hover:bg-amber-100"
-                            >
-                              Set All to 10
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSetAllSizesStock(0)}
-                              className="px-2 py-1 rounded-lg bg-rose-50 border border-rose-300 text-[10px] font-bold text-rose-800 hover:bg-rose-100"
-                            >
-                              Mark All 0 (Sold Out)
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Size Stock Input Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                          {formSizes.map(s => {
-                            const val = formSizeStock[s] !== undefined ? formSizeStock[s]! : '5';
-                            const numVal = parseInt(val) || 0;
-                            const isOutOfStock = numVal === 0;
-
-                            return (
-                              <div key={s} className="bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-1.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-xs text-gray-900">Size {s}</span>
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                                    isOutOfStock 
-                                      ? 'bg-rose-100 text-rose-800' 
-                                      : numVal <= 2 
-                                      ? 'bg-amber-100 text-amber-800' 
-                                      : 'bg-emerald-100 text-emerald-800'
-                                  }`}>
-                                    {isOutOfStock ? 'Out of Stock' : `${numVal} in stock`}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStepSizeStock(s, -1)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
-                                  >
-                                    -
-                                  </button>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={val}
-                                    onChange={(e) => handleSizeStockChange(s, e.target.value)}
-                                    placeholder="0"
-                                    className="w-full text-center py-1 bg-gray-50 border border-gray-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#4A0E17] focus:outline-none"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStepSizeStock(s, 1)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Calculated Total */}
-                        <div className="flex items-center justify-between text-xs pt-1 border-t border-amber-200/50">
-                          <span className="text-gray-600">
-                            Total Inventory for this Product:
-                          </span>
-                          <span className="font-extrabold text-gray-900">
-                            {formSizes.reduce((acc, s) => acc + (parseInt(formSizeStock[s] || '0') || 0), 0)} Units
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Product Image */}
-                      <div className="md:col-span-2 space-y-2">
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                          Product Image * (URL or Upload Local Image)
-                        </label>
-                        
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <input
-                            type="text"
-                            placeholder="Paste image URL..."
-                            value={formImageUrl}
-                            onChange={(e) => setFormImageUrl(e.target.value)}
-                            className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#4A0E17] focus:outline-none"
-                          />
-
-                          <label className="cursor-pointer px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shrink-0">
-                            <Upload className="w-4 h-4 text-gray-700" />
-                            <span>Upload Image File</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleFileUpload}
-                              className="hidden"
-                            />
-                          </label>
-                        </div>
-
-                        {formImageUrl && (
-                          <div className="pt-2 flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-                            <img
-                              src={formImageUrl}
-                              alt="Preview"
-                              className="w-16 h-20 object-cover rounded-lg border border-gray-300"
-                            />
-                            <div className="text-xs text-gray-600">
-                              <span className="font-bold text-emerald-700">Image Loaded!</span>
-                              <p className="text-[10px] text-gray-400 line-clamp-1 max-w-md">{formImageUrl}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Fabric Details */}
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                          Fabric &amp; Work Notes
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Kerala Tissue Cotton with Golden Zari Pallu"
-                          value={formFabric}
-                          onChange={(e) => setFormFabric(e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#4A0E17] focus:outline-none"
-                        />
-                      </div>
-
-                      {/* Description */}
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                          Product Description
-                        </label>
-                        <textarea
-                          rows={2}
-                          placeholder="Details about craftsmanship, weave, draping..."
-                          value={formDescription}
-                          onChange={(e) => setFormDescription(e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#4A0E17] focus:outline-none"
-                        />
-                      </div>
-
-                      {/* Stock Status Selection */}
-                      <div className="md:col-span-2 space-y-2 pt-2 border-t border-gray-100">
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                          Inventory Stock Status *
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setFormInStock(true)}
-                            className={`p-3.5 rounded-xl border text-left flex items-center justify-between transition-all ${
-                              formInStock
-                                ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm ring-2 ring-emerald-500/20'
-                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
-                            }`}
-                          >
-                            <div>
-                              <div className="font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                In Stock (Available)
-                              </div>
-                              <p className="text-[11px] text-gray-500 mt-0.5">
-                                Customers can order this product on WhatsApp
-                              </p>
-                            </div>
-                            {formInStock && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setFormInStock(false)}
-                            className={`p-3.5 rounded-xl border text-left flex items-center justify-between transition-all ${
-                              !formInStock
-                                ? 'bg-rose-50 border-rose-500 text-rose-900 shadow-sm ring-2 ring-rose-500/20'
-                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
-                            }`}
-                          >
-                            <div>
-                              <div className="font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                                Out of Stock (Sold Out)
-                              </div>
-                              <p className="text-[11px] text-gray-500 mt-0.5">
-                                Displays prominent "Out of Stock" badge
-                              </p>
-                            </div>
-                            {!formInStock && <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* New Arrival Tag */}
-                      <div className="md:col-span-2 pt-2">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={formIsNewArrival}
-                            onChange={(e) => setFormIsNewArrival(e.target.checked)}
-                            className="w-4 h-4 text-[#4A0E17] rounded border-gray-300 focus:ring-[#4A0E17]"
-                          />
-                          <span>Mark as "New Arrival" Collection</span>
-                        </label>
-                      </div>
-
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => { resetForm(); setActiveTab('products'); }}
-                        className="px-5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold"
-                      >
-                        Cancel
-                      </button>
-
-                      <button
-                        type="submit"
-                        className="px-6 py-2.5 rounded-xl gold-gradient-btn text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2"
-                      >
-                        <Flame className="w-4 h-4 text-[#4A0E17]" />
-                        <span>{editingProductId ? 'Update in Firestore' : 'Save to Firestore Database'}</span>
-                      </button>
-                    </div>
-
-                  </form>
-
-                </div>
+                <MultiLayerProductCreator
+                  editingProduct={editingProduct}
+                  onSuccess={(_count) => {
+                    const fresh = ProductStorage.getProducts();
+                    setProducts(fresh);
+                    onRefreshProducts();
+                    setEditingProduct(null);
+                    setEditingProductId(null);
+                    setActiveTab('products');
+                  }}
+                  onCancel={() => {
+                    setEditingProduct(null);
+                    setEditingProductId(null);
+                    setActiveTab('products');
+                  }}
+                  onToast={onToast}
+                />
               )}
 
               {/* TAB 3: EXCEL SHEET UPLOAD */}

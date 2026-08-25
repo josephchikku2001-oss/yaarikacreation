@@ -4,12 +4,13 @@ import { FirestoreProductService, isFirebaseConfigured } from './firebase';
 
 const KEYS = {
   ADMIN: 'yaarika_admin_credentials_v1',
-  PRODUCTS: 'yaarika_products_v4',
-  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v4',
-  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v4',
-  DELETED_IDS: 'yaarika_admin_deleted_ids_v4',
+  PRODUCTS: 'yaarika_products_v5',
+  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v5',
+  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v5',
+  DELETED_IDS: 'yaarika_admin_deleted_ids_v5',
   WISHLIST: 'yaarika_wishlist_v1',
-  INQUIRIES: 'yaarika_inquiries_v1'
+  INQUIRIES: 'yaarika_inquiries_v1',
+  CATALOG_WIPED_FLAG: 'yaarika_catalog_wiped_v5'
 };
 
 export const PRODUCTS_UPDATED_EVENT = 'yaarika_products_updated';
@@ -154,12 +155,39 @@ export const AdminStorage = {
 
 // PRODUCT CATALOG MANAGEMENT SERVICES (Supports UNLIMITED Products with IndexedDB & Memory Cache)
 const IDB_CONFIG = {
-  DB_NAME: 'yaarika_boutique_db_v4',
+  DB_NAME: 'yaarika_boutique_db_v5',
   STORE_NAME: 'catalog_products',
   VERSION: 1
 };
 
 let memoryProductsCache: Product[] | null = null;
+
+// Ensure previous cached products are completely wiped clean upon request
+function checkAndPerformWipe(): void {
+  try {
+    if (typeof window !== 'undefined') {
+      const isWiped = localStorage.getItem(KEYS.CATALOG_WIPED_FLAG);
+      if (!isWiped) {
+        localStorage.removeItem(KEYS.PRODUCTS);
+        localStorage.removeItem(KEYS.CUSTOM_PRODUCTS);
+        localStorage.removeItem(KEYS.CUSTOM_EDITS);
+        localStorage.removeItem(KEYS.DELETED_IDS);
+        localStorage.removeItem('yaarika_products_v4');
+        localStorage.removeItem('yaarika_admin_custom_products_v4');
+        localStorage.removeItem('yaarika_admin_custom_edits_v4');
+        localStorage.removeItem('yaarika_admin_deleted_ids_v4');
+        localStorage.setItem(KEYS.CATALOG_WIPED_FLAG, 'true');
+        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify([]));
+        localStorage.setItem(KEYS.CUSTOM_PRODUCTS, JSON.stringify([]));
+        memoryProductsCache = [];
+      }
+    }
+  } catch (e) {
+    console.warn('Wipe check warning:', e);
+  }
+}
+
+checkAndPerformWipe();
 
 function openIndexedDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
