@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Product, CategoryType, SizeType } from '../types';
 import { ProductStorage } from '../services/storage';
+import { compressImageFile } from '../utils/imageCompressor';
 
 interface MultiLayerProductCreatorProps {
   onSuccess: (count: number) => void;
@@ -202,7 +203,7 @@ export const MultiLayerProductCreator: React.FC<MultiLayerProductCreatorProps> =
   };
 
   // Handle local image file upload for a specific layer (supports multiple files up to MAX_IMAGES_PER_PRODUCT = 5)
-  const handleLayerImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLayerImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -215,36 +216,37 @@ export const MultiLayerProductCreator: React.FC<MultiLayerProductCreatorProps> =
     }
 
     const filesToProcess = (Array.from(files) as File[]).slice(0, remainingSlots);
-    let loadedCount = 0;
+    onToast(`Optimizing and uploading ${filesToProcess.length} photo(s)...`);
 
-    filesToProcess.forEach((file: File) => {
-      if (file.size > 4 * 1024 * 1024) {
-        onToast('Note: Large image file detected. Compression recommended for fast loading.');
+    try {
+      const compressedUrls: string[] = [];
+      for (const file of filesToProcess) {
+        const compressed = await compressImageFile(file);
+        compressedUrls.push(compressed);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const resultUrl = reader.result as string;
-        setLayers(prev => {
-          const copy = [...prev];
-          const imgs = copy[index].images ? [...copy[index].images] : (copy[index].imageUrl ? [copy[index].imageUrl] : []);
-          if (imgs.length < MAX_IMAGES_PER_PRODUCT && !imgs.includes(resultUrl)) {
-            imgs.push(resultUrl);
+
+      setLayers(prev => {
+        const copy = [...prev];
+        const imgs = copy[index].images ? [...copy[index].images] : (copy[index].imageUrl ? [copy[index].imageUrl] : []);
+        compressedUrls.forEach(url => {
+          if (imgs.length < MAX_IMAGES_PER_PRODUCT && !imgs.includes(url)) {
+            imgs.push(url);
           }
-          copy[index] = {
-            ...copy[index],
-            images: imgs,
-            imageUrl: imgs[0] || ''
-          };
-          return copy;
         });
 
-        loadedCount++;
-        if (loadedCount === filesToProcess.length) {
-          onToast(`Added ${loadedCount} photo(s) to Layer #${index + 1}!`);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+        copy[index] = {
+          ...copy[index],
+          images: imgs,
+          imageUrl: imgs[0] || ''
+        };
+        return copy;
+      });
+
+      onToast(`Added ${compressedUrls.length} cloud-ready photo(s) to Layer #${index + 1}!`);
+    } catch (err) {
+      console.error('Image compression error:', err);
+      onToast('Error processing image files. Please try again.');
+    }
 
     // Reset input value so same files can be re-selected if needed
     e.target.value = '';

@@ -54,6 +54,7 @@ import {
   isSizeInStock, 
   getProductTotalStock 
 } from '../utils/inventory';
+import { compressImageFile } from '../utils/imageCompressor';
 
 interface AdminPortalProps {
   onClose: () => void;
@@ -431,19 +432,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     onToast(`Updated ${product.title} (${size}) stock to ${newSizeCount} units.`);
   };
 
-  // Image Upload File to Data URL
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image Upload File to Data URL with automatic web compression
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        onToast('Image size should be under 2MB for fast browser loading.');
+      onToast('Optimizing image for fast web loading...');
+      try {
+        const compressed = await compressImageFile(file);
+        setFormImageUrl(compressed);
+        onToast('Product image uploaded and optimized successfully!');
+      } catch {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormImageUrl(reader.result as string);
+          onToast('Product image uploaded successfully!');
+        };
+        reader.readAsDataURL(file);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormImageUrl(reader.result as string);
-        onToast('Product image uploaded successfully!');
-      };
-      reader.readAsDataURL(file);
     }
   };
 

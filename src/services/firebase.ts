@@ -14,7 +14,6 @@ import {
   doc, 
   getDocs, 
   setDoc, 
-  updateDoc, 
   deleteDoc, 
   query, 
   orderBy, 
@@ -22,7 +21,7 @@ import {
   Firestore,
   writeBatch
 } from 'firebase/firestore';
-import { Product } from '../types';
+import { Product, InquiryLog } from '../types';
 
 export interface FirebaseConfig {
   apiKey: string;
@@ -31,46 +30,44 @@ export interface FirebaseConfig {
   storageBucket?: string;
   messagingSenderId?: string;
   appId: string;
+  firestoreDatabaseId?: string;
 }
 
-const FIREBASE_CONFIG_STORAGE_KEY = 'yaarika_firebase_custom_config_v1';
+// Built-in Provisioned Firebase configuration for cross-device cloud catalog persistence
+export const DEFAULT_FIREBASE_CONFIG: FirebaseConfig = {
+  projectId: "handy-aloe-36shk",
+  appId: "1:479067422881:web:fdd52c84b0c6f5fc08b0e0",
+  apiKey: "AIzaSyApU6KQW6IVWxY4JrBFMpzMD2qkr9Z3f9s",
+  authDomain: "handy-aloe-36shk.firebaseapp.com",
+  firestoreDatabaseId: "ai-studio-yaarikacollectio-03251ed0-36f6-46e0-afaa-d5e07e41f99e",
+  storageBucket: "handy-aloe-36shk.firebasestorage.app",
+  messagingSenderId: "479067422881"
+};
 
-// Default / initial environment fallback config or saved config
-export function getSavedFirebaseConfig(): FirebaseConfig | null {
+const FIREBASE_CONFIG_STORAGE_KEY = 'yaarika_firebase_custom_config_v2';
+
+export function getSavedFirebaseConfig(): FirebaseConfig {
   try {
     const saved = localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.apiKey && parsed.projectId) {
-        return parsed;
+        return {
+          ...DEFAULT_FIREBASE_CONFIG,
+          ...parsed
+        };
       }
     }
   } catch (e) {
     console.warn('Error reading saved Firebase config:', e);
   }
 
-  // Check Vite env variables if present
-  const envApiKey = (import.meta as any).env?.VITE_FIREBASE_API_KEY || '';
-  const envProjectId = (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || '';
-  const envAuthDomain = (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || `${envProjectId}.firebaseapp.com`;
-  const envAppId = (import.meta as any).env?.VITE_FIREBASE_APP_ID || '';
-
-  if (envApiKey && envProjectId) {
-    return {
-      apiKey: envApiKey,
-      authDomain: envAuthDomain,
-      projectId: envProjectId,
-      appId: envAppId || '1:123456789:web:abcdef'
-    };
-  }
-
-  return null;
+  return DEFAULT_FIREBASE_CONFIG;
 }
 
 export function saveFirebaseConfig(config: FirebaseConfig): void {
   try {
     localStorage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(config));
-    // Reset app instance to reinitialize
     cachedApp = null;
     cachedAuth = null;
     cachedDb = null;
@@ -132,18 +129,28 @@ export function getFirebaseFirestore(): Firestore | null {
   const app = getFirebaseApp();
   if (!app) return null;
 
+  const config = getSavedFirebaseConfig();
   try {
-    cachedDb = getFirestore(app);
+    if (config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)') {
+      cachedDb = getFirestore(app, config.firestoreDatabaseId);
+    } else {
+      cachedDb = getFirestore(app);
+    }
     return cachedDb;
   } catch (e) {
-    console.warn('Failed to get Firestore:', e);
-    return null;
+    console.warn('Failed to get Firestore with specific DB ID, falling back to default:', e);
+    try {
+      cachedDb = getFirestore(app);
+      return cachedDb;
+    } catch (err) {
+      console.error('Firestore initialization error:', err);
+      return null;
+    }
   }
 }
 
-// Check if Firebase is active and connected
 export function isFirebaseConfigured(): boolean {
-  return getSavedFirebaseConfig() !== null;
+  return true; // Active with provisioned cloud database
 }
 
 // Helper to convert Firestore Document to strongly-typed normalized Product
@@ -156,6 +163,16 @@ function parseFirestoreDocToProduct(id: string, data: any): Product {
     ? (typeof data.stockCount === 'number' ? data.stockCount : parseInt(data.stockCount))
     : undefined;
 
+  // Preserve multiple images array (up to 5)
+  let imagesList: string[] = [];
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    imagesList = data.images.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
+  } else if (data.imageUrl) {
+    imagesList = [data.imageUrl];
+  }
+
+  const primaryImage = imagesList[0] || data.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+
   return {
     id,
     title: data.title || 'Yaarika Ethnic Ensemble',
@@ -167,7 +184,8 @@ function parseFirestoreDocToProduct(id: string, data: any): Product {
     sizeStock: data.sizeStock && typeof data.sizeStock === 'object' ? data.sizeStock : {},
     isNewArrival: Boolean(data.isNewArrival),
     sizes: Array.isArray(data.sizes) && data.sizes.length > 0 ? data.sizes : ['Free Size'],
-    imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
+    imageUrl: primaryImage,
+    images: imagesList,
     description: data.description || '',
     fabricDetails: data.fabricDetails || '',
     createdAt: data.createdAt || new Date().toISOString(),
@@ -175,7 +193,7 @@ function parseFirestoreDocToProduct(id: string, data: any): Product {
   };
 }
 
-// FIRESTORE PRODUCT SERVICE
+// FIRESTORE PRODUCT SERVICE FOR SEAMLESS MULTI-DEVICE SYNC
 export const FirestoreProductService = {
   // Fetch all products from Firestore
   async fetchProducts(): Promise<Product[]> {
@@ -191,7 +209,7 @@ export const FirestoreProductService = {
         const q = query(colRef, orderBy('createdAt', 'desc'));
         snapshot = await getDocs(q);
       } catch (orderErr) {
-        console.warn('OrderBy query failed, falling back to direct collection fetch:', orderErr);
+        console.warn('OrderBy query fallback to direct collection fetch:', orderErr);
         snapshot = await getDocs(colRef);
       }
 
@@ -225,6 +243,7 @@ export const FirestoreProductService = {
     try {
       const docRef = doc(db, 'products', product.id);
       await setDoc(docRef, {
+        id: product.id,
         title: product.title,
         category: product.category,
         price: product.price,
@@ -235,8 +254,10 @@ export const FirestoreProductService = {
         isNewArrival: Boolean(product.isNewArrival),
         sizes: product.sizes || ['Free Size'],
         imageUrl: product.imageUrl,
+        images: product.images || (product.imageUrl ? [product.imageUrl] : []),
         description: product.description || '',
         fabricDetails: product.fabricDetails || '',
+        featured: Boolean(product.featured),
         createdAt: product.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
@@ -262,7 +283,7 @@ export const FirestoreProductService = {
     }
   },
 
-  // Bulk sync/export full catalog to Firestore
+  // Bulk sync full catalog to Firestore
   async syncAllToFirestore(products: Product[]): Promise<number> {
     const db = getFirebaseFirestore();
     if (!db) {
@@ -270,14 +291,15 @@ export const FirestoreProductService = {
     }
 
     let syncedCount = 0;
-    // Batch in chunks of 400 (Firestore limit is 500)
-    for (let i = 0; i < products.length; i += 400) {
-      const chunk = products.slice(i, i + 400);
+    // Batch in chunks of 250
+    for (let i = 0; i < products.length; i += 250) {
+      const chunk = products.slice(i, i + 250);
       const batch = writeBatch(db);
 
       for (const p of chunk) {
         const docRef = doc(db, 'products', p.id);
         batch.set(docRef, {
+          id: p.id,
           title: p.title,
           category: p.category,
           price: p.price,
@@ -288,8 +310,10 @@ export const FirestoreProductService = {
           isNewArrival: Boolean(p.isNewArrival),
           sizes: p.sizes || ['Free Size'],
           imageUrl: p.imageUrl,
+          images: p.images || (p.imageUrl ? [p.imageUrl] : []),
           description: p.description || '',
           fabricDetails: p.fabricDetails || '',
+          featured: Boolean(p.featured),
           createdAt: p.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }, { merge: true });
@@ -302,7 +326,7 @@ export const FirestoreProductService = {
     return syncedCount;
   },
 
-  // Real-time listener for Firestore updates
+  // Real-time listener for multi-device instant updates
   subscribeToProducts(onUpdate: (products: Product[]) => void, onError?: (err: Error) => void): (() => void) {
     const db = getFirebaseFirestore();
     if (!db) {
@@ -328,7 +352,7 @@ export const FirestoreProductService = {
 
         onUpdate(products);
       }, (err) => {
-        console.error('Firestore subscription error:', err);
+        console.warn('Firestore subscription status:', err);
         if (onError) onError(err);
       });
 
@@ -336,6 +360,19 @@ export const FirestoreProductService = {
     } catch (e) {
       console.warn('Could not establish Firestore subscription:', e);
       return () => {};
+    }
+  },
+
+  // Log WhatsApp Inquiry to Firestore
+  async logInquiry(inquiry: InquiryLog): Promise<void> {
+    const db = getFirebaseFirestore();
+    if (!db) return;
+
+    try {
+      const docRef = doc(db, 'inquiries', inquiry.id);
+      await setDoc(docRef, inquiry, { merge: true });
+    } catch (e) {
+      console.warn('Could not log inquiry to Firestore:', e);
     }
   }
 };
@@ -345,7 +382,7 @@ export const FirebaseAuthService = {
   async signIn(email: string, pass: string): Promise<{ success: boolean; user?: User; error?: string }> {
     const auth = getFirebaseAuth();
     if (!auth) {
-      return { success: false, error: 'Firebase is not initialized. Please configure Firebase settings.' };
+      return { success: false, error: 'Firebase is not initialized.' };
     }
 
     try {
