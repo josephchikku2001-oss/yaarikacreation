@@ -242,7 +242,15 @@ export const MultiLayerProductCreator: React.FC<MultiLayerProductCreatorProps> =
         return copy;
       });
 
-      onToast(`Added ${compressedUrls.length} cloud-ready photo(s) to Layer #${index + 1}!`);
+      // Automatically fill the URL input box with the newly generated image URL
+      if (compressedUrls.length > 0) {
+        setUrlInputs(prev => ({
+          ...prev,
+          [index]: compressedUrls[compressedUrls.length - 1]
+        }));
+      }
+
+      onToast(`Added ${compressedUrls.length} cloud-ready photo(s) to Layer #${index + 1}! URL auto-filled.`);
     } catch (err) {
       console.error('Image compression error:', err);
       onToast('Error processing image files. Please try again.');
