@@ -29,7 +29,8 @@ import {
   Search,
   Cloud,
   RefreshCw,
-  Boxes
+  Boxes,
+  ChevronUp
 } from 'lucide-react';
 import { CONTACT_NUMBERS } from './utils/whatsapp';
 
@@ -331,6 +332,28 @@ export default function App() {
     inStockOnly, 
     selectedSort
   ]);
+
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleWindowScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleWindowScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   const hasActiveFilters = useMemo(() => {
     return selectedSize !== 'All' || selectedPriceRange !== 'all' || inStockOnly || selectedSort !== 'featured';
@@ -718,6 +741,18 @@ export default function App() {
 
       {/* TOAST NOTIFICATION */}
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+
+      {/* SMOOTH SCROLL TO TOP FLOATING BUTTON */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          aria-label="Scroll to top of website"
+          className="fixed bottom-6 right-6 z-30 p-3 rounded-full bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] shadow-xl hover:bg-[#32080F] hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center group"
+          title="Scroll to Top (മുകളിലേക്ക് സ്ക്രോൾ ചെയ്യുക)"
+        >
+          <ChevronUp className="w-5 h-5 text-[#D4AF37] group-hover:-translate-y-0.5 transition-transform" />
+        </button>
+      )}
 
     </div>
   );

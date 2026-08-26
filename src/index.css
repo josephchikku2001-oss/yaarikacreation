@@ -12,10 +12,18 @@
     --color-cream-card: #FFFDF9;
   }
 
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: #FDFCF8;
     color: #1A1A1A;
+    min-height: 100vh;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
   }
 
   h1, h2, h3, .font-cinzel {
