@@ -14,7 +14,7 @@
 
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {
@@ -22,7 +22,7 @@
     background-color: #FDFCF8;
     color: #1A1A1A;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: clip;
     scroll-behavior: smooth;
   }
 
