@@ -4,13 +4,13 @@ import { FirestoreProductService, isFirebaseConfigured } from './firebase';
 
 const KEYS = {
   ADMIN: 'yaarika_admin_credentials_v1',
-  PRODUCTS: 'yaarika_products_v5',
-  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v5',
-  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v5',
-  DELETED_IDS: 'yaarika_admin_deleted_ids_v5',
+  PRODUCTS: 'yaarika_products_v6',
+  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v6',
+  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v6',
+  DELETED_IDS: 'yaarika_admin_deleted_ids_v6',
   WISHLIST: 'yaarika_wishlist_v1',
   INQUIRIES: 'yaarika_inquiries_v1',
-  CATALOG_WIPED_FLAG: 'yaarika_catalog_wiped_v5'
+  CATALOG_WIPED_FLAG: 'yaarika_catalog_wiped_v6'
 };
 
 export const PRODUCTS_UPDATED_EVENT = 'yaarika_products_updated';
@@ -155,7 +155,7 @@ export const AdminStorage = {
 
 // PRODUCT CATALOG MANAGEMENT SERVICES (Supports UNLIMITED Products with IndexedDB & Memory Cache)
 const IDB_CONFIG = {
-  DB_NAME: 'yaarika_boutique_db_v5',
+  DB_NAME: 'yaarika_boutique_db_v6',
   STORE_NAME: 'catalog_products',
   VERSION: 1
 };
@@ -169,9 +169,14 @@ function checkAndPerformWipe(): void {
       const isWiped = localStorage.getItem(KEYS.CATALOG_WIPED_FLAG);
       if (!isWiped) {
         localStorage.removeItem('yaarika_products_v4');
-        localStorage.removeItem('yaarika_admin_custom_products_v4');
-        localStorage.removeItem('yaarika_admin_custom_edits_v4');
-        localStorage.removeItem('yaarika_admin_deleted_ids_v4');
+        localStorage.removeItem('yaarika_products_v5');
+        localStorage.removeItem('yaarika_admin_custom_products_v5');
+        localStorage.removeItem('yaarika_admin_custom_edits_v5');
+        localStorage.removeItem('yaarika_admin_deleted_ids_v5');
+        localStorage.removeItem(KEYS.PRODUCTS);
+        localStorage.removeItem(KEYS.CUSTOM_PRODUCTS);
+        localStorage.removeItem(KEYS.CUSTOM_EDITS);
+        localStorage.removeItem(KEYS.DELETED_IDS);
         localStorage.setItem(KEYS.CATALOG_WIPED_FLAG, 'true');
         memoryProductsCache = null;
       }
