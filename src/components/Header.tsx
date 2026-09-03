@@ -61,10 +61,10 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-[#4A0E17] text-[#D4AF37] border-b-2 border-[#D4AF37] shadow-lg">
       {/* Top Mini Bar */}
-      <div className="bg-black/20 text-[#D4AF37] px-4 sm:px-8 py-1.5 flex justify-between items-center text-[10px] uppercase tracking-widest font-semibold border-b border-[#D4AF37]/20">
+      <div className="bg-black/25 text-[#D4AF37] px-4 sm:px-8 py-1.5 flex justify-between items-center text-[10px] uppercase tracking-widest font-semibold border-b border-[#D4AF37]/20">
         <span className="flex items-center gap-1.5">
           <Sparkles className="w-3 h-3 text-[#D4AF37]" />
-          Pan Kerala Free Shipping
+          <span>Pan Kerala Free Shipping</span>
         </span>
         <div className="flex items-center gap-4">
           <a 

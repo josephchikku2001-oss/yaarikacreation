@@ -739,7 +739,7 @@ export const ProductStorage = {
         isNewArrival: i % 4 === 0,
         sizes: ['S', 'M', 'L', 'XL', 'Free Size'],
         imageUrl: img,
-        description: `Premium ${fabric} crafted with exquisite craftsmanship. Perfect for weddings, Onam festivities, and festive celebrations. All Kerala Free Shipping included.`
+        description: `Premium ${fabric} crafted with exquisite craftsmanship. Perfect for weddings, festive celebrations, and special occasions. All Kerala Free Shipping included.`
       });
     }
 
