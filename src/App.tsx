@@ -124,19 +124,25 @@ export default function App() {
 
     // 2. Check if Firebase Firestore is configured
     if (isFirebaseConfigured()) {
-      setIsFirestoreConnected(true);
+      setIsFirestoreConnected(false);
       setIsLoadingCatalog(syncProducts.length === 0);
 
-      // A. Perform immediate dynamic fetch from Firestore
+      // A. Perform dynamic fetch from Firestore with safe fallback
       FirestoreProductService.fetchProducts()
         .then((cloudProducts) => {
           if (cloudProducts && cloudProducts.length > 0) {
             setProducts(cloudProducts);
             ProductStorage.saveProducts(cloudProducts);
+            setIsFirestoreConnected(true);
           }
         })
-        .catch((err) => {
-          console.warn('Initial dynamic Firestore product fetch warning:', err);
+        .catch(() => {
+          // Graceful fallback to verified local catalog cache
+          setIsFirestoreConnected(false);
+          const cached = ProductStorage.getProducts();
+          if (cached && cached.length > 0) {
+            setProducts(cached);
+          }
         })
         .finally(() => {
           setIsLoadingCatalog(false);
@@ -148,11 +154,12 @@ export default function App() {
           if (liveProducts && liveProducts.length > 0) {
             setProducts(liveProducts);
             ProductStorage.saveProducts(liveProducts);
+            setIsFirestoreConnected(true);
             setIsLoadingCatalog(false);
           }
         },
-        (error) => {
-          console.warn('Firestore live subscription fallback:', error);
+        () => {
+          setIsFirestoreConnected(false);
         }
       );
     } else {
@@ -225,18 +232,20 @@ export default function App() {
           if (cloudProducts && cloudProducts.length > 0) {
             setProducts(cloudProducts);
             ProductStorage.saveProducts(cloudProducts);
+            setIsFirestoreConnected(true);
           }
         })
         .catch(() => {
+          setIsFirestoreConnected(false);
           ProductStorage.loadProductsAsync().then(setProducts);
         });
     } else {
+      setIsFirestoreConnected(false);
       ProductStorage.loadProductsAsync().then((allProducts) => {
         setProducts(allProducts);
       });
     }
     setIsAdminSetupComplete(AdminStorage.isSetupComplete());
-    setIsFirestoreConnected(isFirebaseConfigured());
   };
 
   const handleToggleWishlist = (productId: string) => {

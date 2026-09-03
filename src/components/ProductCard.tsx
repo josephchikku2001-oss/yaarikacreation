@@ -86,8 +86,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <img
           src={hasMultipleImages && isHovered ? secondaryImage : (imgSrc || primaryImage)}
           alt={product.title}
-          onError={() => {
-            setImgSrc('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            const fallback = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+            if (e.currentTarget.src !== fallback) {
+              e.currentTarget.src = fallback;
+              setImgSrc(fallback);
+            }
           }}
           className={`w-full h-full object-cover object-top block transition-all duration-500 group-hover:scale-105 ${
             !isOverallInStock ? 'opacity-75 grayscale-[30%]' : ''

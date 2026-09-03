@@ -129,6 +129,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <img
               src={currentDisplayImage}
               alt={`${product.title} - View ${activeImageIndex + 1}`}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const fallback = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+                if (e.currentTarget.src !== fallback) {
+                  e.currentTarget.src = fallback;
+                }
+              }}
               className={`w-full h-full object-cover object-top transition-opacity duration-300 ${!isOverallInStock ? 'opacity-75 grayscale-[25%]' : ''}`}
             />
             
@@ -199,6 +206,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     <img
                       src={img}
                       alt={`Thumbnail ${idx + 1}`}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const fallback = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+                        if (e.currentTarget.src !== fallback) {
+                          e.currentTarget.src = fallback;
+                        }
+                      }}
                       className="w-full h-full object-cover"
                     />
                     {idx === 0 && (

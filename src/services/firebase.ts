@@ -10,6 +10,8 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, 
+  initializeFirestore,
+  setLogLevel,
   collection, 
   doc, 
   getDocs, 
@@ -22,6 +24,11 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { Product, InquiryLog } from '../types';
+
+// Silence verbose connection timeout info logs in sandboxed/offline environments
+try {
+  setLogLevel('error');
+} catch {}
 
 export interface FirebaseConfig {
   apiKey: string;
@@ -130,20 +137,27 @@ export function getFirebaseFirestore(): Firestore | null {
   if (!app) return null;
 
   const config = getSavedFirebaseConfig();
+  const firestoreSettings = {
+    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: false
+  };
+
   try {
     if (config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)') {
-      cachedDb = getFirestore(app, config.firestoreDatabaseId);
+      cachedDb = initializeFirestore(app, firestoreSettings, config.firestoreDatabaseId);
     } else {
-      cachedDb = getFirestore(app);
+      cachedDb = initializeFirestore(app, firestoreSettings);
     }
     return cachedDb;
   } catch (e) {
-    console.warn('Failed to get Firestore with specific DB ID, falling back to default:', e);
     try {
-      cachedDb = getFirestore(app);
+      if (config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)') {
+        cachedDb = getFirestore(app, config.firestoreDatabaseId);
+      } else {
+        cachedDb = getFirestore(app);
+      }
       return cachedDb;
     } catch (err) {
-      console.error('Firestore initialization error:', err);
       return null;
     }
   }
@@ -195,7 +209,7 @@ function parseFirestoreDocToProduct(id: string, data: any): Product {
 
 // FIRESTORE PRODUCT SERVICE FOR SEAMLESS MULTI-DEVICE SYNC
 export const FirestoreProductService = {
-  // Fetch all products from Firestore
+  // Fetch all products from Firestore with safe timeout
   async fetchProducts(): Promise<Product[]> {
     const db = getFirebaseFirestore();
     if (!db) {
@@ -204,31 +218,40 @@ export const FirestoreProductService = {
 
     try {
       const colRef = collection(db, 'products');
-      let snapshot;
-      try {
-        const q = query(colRef, orderBy('createdAt', 'desc'));
-        snapshot = await getDocs(q);
-      } catch (orderErr) {
-        console.warn('OrderBy query fallback to direct collection fetch:', orderErr);
-        snapshot = await getDocs(colRef);
-      }
 
-      const products: Product[] = [];
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        products.push(parseFirestoreDocToProduct(docSnap.id, data));
+      const queryOperation = (async () => {
+        let snapshot;
+        try {
+          const q = query(colRef, orderBy('createdAt', 'desc'));
+          snapshot = await getDocs(q);
+        } catch (orderErr) {
+          snapshot = await getDocs(colRef);
+        }
+
+        const products: Product[] = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          products.push(parseFirestoreDocToProduct(docSnap.id, data));
+        });
+
+        // Sort client-side by date if available
+        products.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
+        return products;
+      })();
+
+      // 4-second timeout prevents 10-second backend hang in sandboxed or quota-limited environments
+      const timeoutPromise = new Promise<Product[]>((_, reject) => {
+        setTimeout(() => reject(new Error('Firestore connection timeout, using offline cache')), 4000);
       });
 
-      // Sort client-side by date if available
-      products.sort((a, b) => {
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return timeB - timeA;
-      });
-
-      return products;
-    } catch (e) {
-      console.error('Error fetching products from Firestore:', e);
+      return await Promise.race([queryOperation, timeoutPromise]);
+    } catch (e: any) {
+      // Return gracefully rejected promise for fallback
       throw e;
     }
   },
@@ -242,7 +265,7 @@ export const FirestoreProductService = {
 
     try {
       const docRef = doc(db, 'products', product.id);
-      await setDoc(docRef, {
+      const savePromise = setDoc(docRef, {
         id: product.id,
         title: product.title,
         category: product.category,
@@ -261,8 +284,14 @@ export const FirestoreProductService = {
         createdAt: product.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
+
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error('Firestore save timed out')), 5000);
+      });
+
+      await Promise.race([savePromise, timeoutPromise]);
     } catch (e) {
-      console.error('Error saving product to Firestore:', e);
+      console.warn('Could not sync product directly to cloud Firestore:', e);
       throw e;
     }
   },
@@ -276,9 +305,13 @@ export const FirestoreProductService = {
 
     try {
       const docRef = doc(db, 'products', productId);
-      await deleteDoc(docRef);
+      const deletePromise = deleteDoc(docRef);
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error('Firestore delete timed out')), 5000);
+      });
+      await Promise.race([deletePromise, timeoutPromise]);
     } catch (e) {
-      console.error('Error deleting product from Firestore:', e);
+      console.warn('Could not sync product deletion directly to cloud Firestore:', e);
       throw e;
     }
   },
@@ -335,8 +368,10 @@ export const FirestoreProductService = {
 
     try {
       const colRef = collection(db, 'products');
+      let isUnsubscribed = false;
       
       const unsubscribe = onSnapshot(colRef, (snapshot) => {
+        if (isUnsubscribed) return;
         const products: Product[] = [];
         snapshot.forEach(docSnap => {
           const data = docSnap.data();
@@ -352,13 +387,21 @@ export const FirestoreProductService = {
 
         onUpdate(products);
       }, (err) => {
-        console.warn('Firestore subscription status:', err);
+        // Stop retrying stream if quota is exhausted or connection refused to avoid repeated 10s timeout warnings
+        isUnsubscribed = true;
+        try {
+          unsubscribe();
+        } catch {}
         if (onError) onError(err);
       });
 
-      return unsubscribe;
+      return () => {
+        isUnsubscribed = true;
+        try {
+          unsubscribe();
+        } catch {}
+      };
     } catch (e) {
-      console.warn('Could not establish Firestore subscription:', e);
       return () => {};
     }
   },

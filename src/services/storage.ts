@@ -162,24 +162,18 @@ const IDB_CONFIG = {
 
 let memoryProductsCache: Product[] | null = null;
 
-// Ensure previous cached products are completely wiped clean upon request
+// Ensure previous obsolete version keys are cleaned without wiping the active catalog
 function checkAndPerformWipe(): void {
   try {
     if (typeof window !== 'undefined') {
       const isWiped = localStorage.getItem(KEYS.CATALOG_WIPED_FLAG);
       if (!isWiped) {
-        localStorage.removeItem(KEYS.PRODUCTS);
-        localStorage.removeItem(KEYS.CUSTOM_PRODUCTS);
-        localStorage.removeItem(KEYS.CUSTOM_EDITS);
-        localStorage.removeItem(KEYS.DELETED_IDS);
         localStorage.removeItem('yaarika_products_v4');
         localStorage.removeItem('yaarika_admin_custom_products_v4');
         localStorage.removeItem('yaarika_admin_custom_edits_v4');
         localStorage.removeItem('yaarika_admin_deleted_ids_v4');
         localStorage.setItem(KEYS.CATALOG_WIPED_FLAG, 'true');
-        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify([]));
-        localStorage.setItem(KEYS.CUSTOM_PRODUCTS, JSON.stringify([]));
-        memoryProductsCache = [];
+        memoryProductsCache = null;
       }
     }
   } catch (e) {
@@ -339,8 +333,13 @@ function loadInitialCatalog(): Product[] {
 export const ProductStorage = {
   // Synchronous getter for fast initial render
   getProducts(): Product[] {
-    if (!memoryProductsCache) {
+    if (!memoryProductsCache || memoryProductsCache.length === 0) {
       memoryProductsCache = loadInitialCatalog();
+      if (!memoryProductsCache || memoryProductsCache.length === 0) {
+        memoryProductsCache = INITIAL_PRODUCTS;
+      }
+      // Populate IndexedDB in background
+      persistToIndexedDB(memoryProductsCache);
       // Try background fetch from IndexedDB if more items exist
       openIndexedDB().then(db => {
         const tx = db.transaction(IDB_CONFIG.STORE_NAME, 'readonly');
