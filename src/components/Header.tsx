@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
             <Sparkles className="w-2.5 h-2.5 text-[#FDE047]" />
           </span>
           <span className="text-[#FDFBF7] font-medium tracking-wider">
-            Pan Kerala Express Delivery <span className="text-[#D4AF37]/60 hidden md:inline">•</span> <span className="text-[#D4AF37] hidden md:inline">Authentic Kasavu Handloom</span>
+            All Kerala Free Shipping
           </span>
         </div>
 
@@ -91,15 +91,6 @@ export const Header: React.FC<HeaderProps> = ({
             <Phone className="w-2.5 h-2.5 text-[#25D366] group-hover:scale-110 transition-transform" />
             <span>WhatsApp: {CONTACT_NUMBERS[0].display}</span>
           </a>
-
-          <button
-            onClick={() => onSetViewMode('admin')}
-            className="text-[#D4AF37]/80 hover:text-white flex items-center gap-1 text-[9.5px] sm:text-[10px] uppercase font-bold tracking-wider hover:underline cursor-pointer pl-1 border-l border-[#D4AF37]/30"
-            title="Admin & Store Manager Portal"
-          >
-            <Lock className="w-2.5 h-2.5" />
-            <span>Admin</span>
-          </button>
         </div>
       </div>
 

@@ -1,14 +1,14 @@
 import React from 'react';
-import { Truck, ShieldCheck, Phone, Lock, Heart, Sparkles, MessageCircle } from 'lucide-react';
+import { Truck, ShieldCheck, Phone, MessageCircle } from 'lucide-react';
 import yaarikaLogo from '../assets/images/regenerated_image_1787041748700.png';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
 
 interface FooterProps {
-  onOpenAdmin: () => void;
-  isAdminSetupComplete: boolean;
+  onOpenAdmin?: () => void;
+  isAdminSetupComplete?: boolean;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplete }) => {
+export const Footer: React.FC<FooterProps> = () => {
   return (
     <footer className="bg-[#2B050B] text-[#F5EDE0] border-t-2 border-[#D4AF37]/60 pt-10 pb-8 px-6 sm:px-10">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -47,7 +47,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
             <div className="flex flex-wrap items-center gap-4 pt-1">
               <div className="flex items-center gap-1.5 text-xs text-[#D4AF37]">
                 <Truck className="w-4 h-4 text-[#FDE047]" />
-                <span className="font-semibold">All Kerala Express Shipping</span>
+                <span className="font-semibold">All Kerala Free Shipping</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-[#D4AF37]">
                 <ShieldCheck className="w-4 h-4 text-[#FDE047]" />
@@ -65,7 +65,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
               Instant confirmation, custom measurements, and parcel dispatch tracking via WhatsApp.
             </p>
             <div className="space-y-2">
-              {CONTACT_NUMBERS.map((contact, idx) => (
+              {CONTACT_NUMBERS.map((contact) => (
                 <a
                   key={contact.value}
                   href={`https://wa.me/${contact.value}`}
@@ -89,23 +89,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
               Customer Support
             </h4>
             <div className="space-y-1.5 text-xs text-[#E6DEC8]">
-              <p>📍 Kochi &amp; All Districts in Kerala</p>
               <p>⏰ Mon - Sat: 9:30 AM - 7:30 PM</p>
               <p className="text-[11px] text-[#D4AF37]/90 pt-1">
-                Direct WhatsApp assistance for color variants &amp; sizing.
+                Direct WhatsApp assistance for inquiries, sizing &amp; orders.
               </p>
-            </div>
-
-            {/* Discreet Admin Portal Button */}
-            <div className="pt-2">
-              <button
-                onClick={onOpenAdmin}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/40 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-[#2B050B] border border-[#D4AF37]/40 hover:border-[#D4AF37] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm"
-                title="Store Manager & Admin Access"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Admin Portal</span>
-              </button>
             </div>
           </div>
 
@@ -117,19 +104,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminSetupComplet
             © {new Date().getFullYear()} <strong className="text-[#FDE047]">Yaarika Collections</strong>. All Rights Reserved. Handcrafted in Kerala.
           </p>
           <div className="flex items-center gap-3">
-            <button
-              onClick={onOpenAdmin}
-              className="text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Lock className="w-3 h-3" />
-              <span>Store Login</span>
-            </button>
-            <span>•</span>
             <a
               href={`https://wa.me/${CONTACT_NUMBERS[0].value}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#25D366] hover:underline flex items-center gap-1"
+              className="text-[#25D366] hover:underline flex items-center gap-1 font-semibold"
             >
               <Phone className="w-3 h-3" />
               <span>WhatsApp Us</span>
