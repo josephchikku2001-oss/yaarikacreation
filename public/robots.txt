@@ -1,6 +1,3 @@
-# Robots.txt for Yaarika Online Store
 User-agent: *
 Allow: /
-
-# Sitemap
-Sitemap: https://yaarikaonlinestore.netlify.app/sitemap.xml
+Sitemap: https://ais-pre-ofzalj2d6odox36gprfds2-818906304037.asia-southeast1.run.app/sitemap.xml

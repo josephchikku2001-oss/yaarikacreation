@@ -4,13 +4,13 @@ import { FirestoreProductService, isFirebaseConfigured } from './firebase';
 
 const KEYS = {
   ADMIN: 'yaarika_admin_credentials_v1',
-  PRODUCTS: 'yaarika_products_v6',
-  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v6',
-  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v6',
-  DELETED_IDS: 'yaarika_admin_deleted_ids_v6',
+  PRODUCTS: 'yaarika_products_v10',
+  CUSTOM_PRODUCTS: 'yaarika_admin_custom_products_v10',
+  CUSTOM_EDITS: 'yaarika_admin_custom_edits_v10',
+  DELETED_IDS: 'yaarika_admin_deleted_ids_v10',
   WISHLIST: 'yaarika_wishlist_v1',
   INQUIRIES: 'yaarika_inquiries_v1',
-  CATALOG_WIPED_FLAG: 'yaarika_catalog_wiped_v6'
+  CATALOG_WIPED_FLAG: 'yaarika_catalog_wiped_v10'
 };
 
 export const PRODUCTS_UPDATED_EVENT = 'yaarika_products_updated';
@@ -155,12 +155,21 @@ export const AdminStorage = {
 
 // PRODUCT CATALOG MANAGEMENT SERVICES (Supports UNLIMITED Products with IndexedDB & Memory Cache)
 const IDB_CONFIG = {
-  DB_NAME: 'yaarika_boutique_db_v6',
+  DB_NAME: 'yaarika_boutique_db_v10',
   STORE_NAME: 'catalog_products',
   VERSION: 1
 };
 
 let memoryProductsCache: Product[] | null = null;
+
+// Initial 5 product IDs that the user requested to permanently remove
+const REMOVED_DEFAULT_IDS = [
+  'prod-saree-01',
+  'prod-saree-02',
+  'prod-churidar-01',
+  'prod-churidar-02',
+  'prod-coord-01'
+];
 
 // Ensure previous obsolete version keys are cleaned without wiping the active catalog
 function checkAndPerformWipe(): void {
@@ -170,15 +179,40 @@ function checkAndPerformWipe(): void {
       if (!isWiped) {
         localStorage.removeItem('yaarika_products_v4');
         localStorage.removeItem('yaarika_products_v5');
+        localStorage.removeItem('yaarika_products_v6');
+        localStorage.removeItem('yaarika_products_v7');
+        localStorage.removeItem('yaarika_products_v8');
+        localStorage.removeItem('yaarika_products_v9');
         localStorage.removeItem('yaarika_admin_custom_products_v5');
+        localStorage.removeItem('yaarika_admin_custom_products_v6');
+        localStorage.removeItem('yaarika_admin_custom_products_v7');
+        localStorage.removeItem('yaarika_admin_custom_products_v8');
+        localStorage.removeItem('yaarika_admin_custom_products_v9');
         localStorage.removeItem('yaarika_admin_custom_edits_v5');
+        localStorage.removeItem('yaarika_admin_custom_edits_v6');
+        localStorage.removeItem('yaarika_admin_custom_edits_v7');
+        localStorage.removeItem('yaarika_admin_custom_edits_v8');
+        localStorage.removeItem('yaarika_admin_custom_edits_v9');
         localStorage.removeItem('yaarika_admin_deleted_ids_v5');
+        localStorage.removeItem('yaarika_admin_deleted_ids_v6');
+        localStorage.removeItem('yaarika_admin_deleted_ids_v7');
+        localStorage.removeItem('yaarika_admin_deleted_ids_v8');
+        localStorage.removeItem('yaarika_admin_deleted_ids_v9');
         localStorage.removeItem(KEYS.PRODUCTS);
         localStorage.removeItem(KEYS.CUSTOM_PRODUCTS);
         localStorage.removeItem(KEYS.CUSTOM_EDITS);
-        localStorage.removeItem(KEYS.DELETED_IDS);
+        // Persist deleted IDs for the 5 removed items
+        localStorage.setItem(KEYS.DELETED_IDS, JSON.stringify(REMOVED_DEFAULT_IDS));
+        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify([]));
         localStorage.setItem(KEYS.CATALOG_WIPED_FLAG, 'true');
-        memoryProductsCache = null;
+        memoryProductsCache = [];
+
+        // Also clean up from Firestore in background if configured
+        if (isFirebaseConfigured()) {
+          REMOVED_DEFAULT_IDS.forEach(id => {
+            FirestoreProductService.deleteProduct(id).catch(() => {});
+          });
+        }
       }
     }
   } catch (e) {
@@ -338,9 +372,9 @@ function loadInitialCatalog(): Product[] {
 export const ProductStorage = {
   // Synchronous getter for fast initial render
   getProducts(): Product[] {
-    if (!memoryProductsCache || memoryProductsCache.length === 0) {
+    if (memoryProductsCache === null) {
       memoryProductsCache = loadInitialCatalog();
-      if (!memoryProductsCache || memoryProductsCache.length === 0) {
+      if (memoryProductsCache === null) {
         memoryProductsCache = INITIAL_PRODUCTS;
       }
       // Populate IndexedDB in background
@@ -528,6 +562,10 @@ export const ProductStorage = {
         console.warn('Background Firestore delete warning:', err);
       });
     }
+  },
+
+  isDeleted(id: string): boolean {
+    return getStoredDeletedIds().includes(id);
   },
 
   getCustomProductsCount(): number {

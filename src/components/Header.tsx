@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Heart, Phone, Sparkles, Menu, X, ArrowRight } from 'lucide-react';
+import { Search, Heart, Phone, Sparkles, Menu, X, ArrowRight, Lock } from 'lucide-react';
 import { CategoryType, ViewMode } from '../types';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
 import yaarikaLogo from '../assets/images/regenerated_image_1787041748700.png';
@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <a 
             href={`https://wa.me/${CONTACT_NUMBERS[0].value}`} 
             target="_blank" 
@@ -91,6 +91,15 @@ export const Header: React.FC<HeaderProps> = ({
             <Phone className="w-2.5 h-2.5 text-[#25D366] group-hover:scale-110 transition-transform" />
             <span>WhatsApp: {CONTACT_NUMBERS[0].display}</span>
           </a>
+
+          <button
+            onClick={() => onSetViewMode('admin')}
+            className="text-[#D4AF37]/80 hover:text-white flex items-center gap-1 text-[9.5px] sm:text-[10px] uppercase font-bold tracking-wider hover:underline cursor-pointer pl-1 border-l border-[#D4AF37]/30"
+            title="Admin & Store Manager Portal"
+          >
+            <Lock className="w-2.5 h-2.5" />
+            <span>Admin</span>
+          </button>
         </div>
       </div>
 
@@ -122,12 +131,15 @@ export const Header: React.FC<HeaderProps> = ({
             title="Yaarika Collections - Click for Home"
           >
             {/* Medallion Logo with Golden Halo Ring */}
-            <div className="w-13 h-13 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full overflow-hidden border-2 border-[#D4AF37] shadow-[0_0_18px_rgba(212,175,55,0.35)] group-hover:scale-105 group-hover:border-amber-300 transition-all bg-[#1F0408] flex-shrink-0 flex items-center justify-center p-1">
+            <div className="w-13 h-13 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full overflow-hidden border-2 border-[#D4AF37] shadow-[0_0_18px_rgba(212,175,55,0.35)] group-hover:scale-105 group-hover:border-amber-300 transition-all bg-gradient-to-br from-[#2B050B] via-[#3E0912] to-[#1A0307] flex-shrink-0 flex items-center justify-center p-1.5">
               <img 
                 src={yaarikaLogo} 
                 alt="Yaarika Collections Logo" 
-                className="w-full h-full object-contain drop-shadow-sm"
+                className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  e.currentTarget.src = '/logo.png';
+                }}
               />
             </div>
 
@@ -328,6 +340,17 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Phone className="w-4 h-4" /> Direct WhatsApp Order Desk
             </a>
+
+            <button
+              onClick={() => {
+                onSetViewMode('admin');
+                setMobileMenuOpen(false);
+              }}
+              className="w-full py-2 px-3 bg-black/40 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-[#2B050B] border border-[#D4AF37]/40 text-[11px] font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 rounded-lg transition-colors cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Admin Management Portal</span>
+            </button>
           </div>
         </div>
       )}

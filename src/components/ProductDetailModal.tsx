@@ -98,12 +98,32 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     onToast(`Opening WhatsApp order with ${contactLabel}`);
   };
 
-  const handleCopyLink = () => {
-    const text = `Check out "${product.title}" - ₹${product.price} at Yaarika Collections! WhatsApp Order: +91 9910396693`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    onToast('Inquiry message copied to clipboard!');
-    setTimeout(() => setCopied(false), 3000);
+  const handleShare = async () => {
+    const text = `Check out "${product.title}" - ₹${product.price.toLocaleString('en-IN')} at Yaarika Collections! WhatsApp Order: ${CONTACT_NUMBERS[0].display}`;
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Yaarika Collections - ${product.title}`,
+          text: text,
+          url: url
+        });
+        onToast('Shared successfully!');
+        return;
+      } catch (err) {
+        // User cancelled or share failed, fallback to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setCopied(true);
+      onToast('Product link & order details copied to clipboard!');
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      onToast('Please copy: ' + text);
+    }
   };
 
   return (
@@ -343,16 +363,31 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
             {/* Button 1: Primary Order Desk (Automatically disabled if out of stock) */}
             {isOverallInStock && isSelectedSizeInStock ? (
-              <button
-                onClick={() => handleOrderWhatsApp(CONTACT_NUMBERS[0].value, CONTACT_NUMBERS[0].display)}
-                className="w-full py-2.5 px-4 bg-[#25D366] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-between transition-all rounded-sm hover:opacity-90 shadow-sm cursor-pointer active:scale-98"
-              >
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Primary Desk ({CONTACT_NUMBERS[0].display})</span>
-                </div>
-                <span className="text-[9px] bg-black/20 px-2 py-0.5 font-normal">Order Size {selectedSize} Now</span>
-              </button>
+              <div className="space-y-1.5">
+                <button
+                  onClick={() => handleOrderWhatsApp(CONTACT_NUMBERS[0].value, CONTACT_NUMBERS[0].display)}
+                  className="w-full py-2.5 px-4 bg-[#25D366] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-between transition-all rounded-sm hover:opacity-95 shadow-sm cursor-pointer active:scale-98"
+                >
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Primary Desk ({CONTACT_NUMBERS[0].display})</span>
+                  </div>
+                  <span className="text-[9px] bg-black/20 px-2 py-0.5 font-normal">Order Size {selectedSize}</span>
+                </button>
+
+                {CONTACT_NUMBERS[1] && (
+                  <button
+                    onClick={() => handleOrderWhatsApp(CONTACT_NUMBERS[1].value, CONTACT_NUMBERS[1].display)}
+                    className="w-full py-1.5 px-3 bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold text-[10.5px] uppercase tracking-wider flex items-center justify-between transition-all rounded-sm hover:bg-emerald-100 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3 h-3 text-emerald-700" />
+                      <span>Alternate Order Desk ({CONTACT_NUMBERS[1].display})</span>
+                    </div>
+                    <span className="text-[8.5px] text-emerald-600 font-semibold">WhatsApp</span>
+                  </button>
+                )}
+              </div>
             ) : (
               <button
                 disabled
@@ -371,7 +406,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="flex items-center justify-between gap-2 pt-1">
               <button
                 onClick={() => onToggleWishlist(product.id)}
-                className={`flex-1 py-2 px-3 text-xs font-bold uppercase tracking-wider border flex items-center justify-center gap-1.5 transition-colors ${
+                className={`flex-1 py-2 px-3 text-xs font-bold uppercase tracking-wider border flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                   isWishlisted
                     ? 'bg-[#4A0E17] text-[#D4AF37] border-[#D4AF37]'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-[#D4AF37]'
@@ -382,8 +417,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </button>
 
               <button
-                onClick={handleCopyLink}
-                className="flex-1 py-2 px-3 bg-white text-gray-700 border border-gray-300 hover:border-[#D4AF37] text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
+                onClick={handleShare}
+                className="flex-1 py-2 px-3 bg-white text-gray-700 border border-gray-300 hover:border-[#D4AF37] text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied!' : 'Share'}</span>

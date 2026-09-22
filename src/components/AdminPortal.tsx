@@ -34,12 +34,15 @@ import {
   Package,
   Minus,
   AlertCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sliders
 } from 'lucide-react';
 import { Product, CategoryType, SizeType, InquiryLog } from '../types';
 import { AdminStorage, ProductStorage, InquiryStorage } from '../services/storage';
 import { ExcelProductUploader } from './ExcelProductUploader';
 import { MultiLayerProductCreator } from './MultiLayerProductCreator';
+import { BannerSliderManager } from './BannerSliderManager';
+import { SAMPLE_SHOWCASE_PRODUCTS } from '../data/sampleShowcase';
 import { 
   FirebaseAuthService, 
   FirestoreProductService, 
@@ -82,7 +85,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [isFirebaseAccountCreation, setIsFirebaseAccountCreation] = useState<boolean>(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'excel' | 'bulk' | 'inquiries' | 'settings'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'excel' | 'bulk' | 'banners' | 'inquiries' | 'settings'>('products');
 
   // Product List
   const [products, setProducts] = useState<Product[]>(ProductStorage.getProducts());
@@ -563,6 +566,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setFormFeatured(p.featured || false);
     setFormIsNewArrival(p.isNewArrival || false);
     setActiveTab('add');
+  };
+
+  // Optional: Load sample boutique showcase ensembles
+  const handleLoadSampleShowcase = () => {
+    const result = ProductStorage.bulkAddProducts(SAMPLE_SHOWCASE_PRODUCTS);
+    const fresh = ProductStorage.getProducts();
+    setProducts(fresh);
+    onRefreshProducts();
+    onToast(`Loaded ${result.added} sample boutique ensembles to catalog & Firestore!`);
   };
 
   // Reset form
@@ -1094,6 +1106,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('banners')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'banners'
+                      ? 'bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-amber-50 border border-amber-300'
+                  }`}
+                >
+                  <Sliders className="w-4 h-4 text-[#D4AF37]" />
+                  <span>Hero Slider (മുകൾഭാഗത്തെ സ്ലൈഡർ)</span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('inquiries')}
                   className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                     activeTab === 'inquiries'
@@ -1233,8 +1257,54 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <tbody className="divide-y divide-gray-100 text-xs">
                           {paginatedProducts.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="p-8 text-center text-gray-500 italic">
-                                No products found matching your active filter.
+                              <td colSpan={6} className="p-8 text-center">
+                                {products.length === 0 ? (
+                                  <div className="space-y-3 py-4 max-w-md mx-auto">
+                                    <div className="w-12 h-12 rounded-full bg-amber-50 text-[#D4AF37] border border-[#D4AF37] flex items-center justify-center mx-auto shadow-sm">
+                                      <Package className="w-6 h-6 text-[#4A0E17]" />
+                                    </div>
+                                    <h4 className="text-sm font-bold text-gray-800">Your Catalog is Ready for Products</h4>
+                                    <p className="text-xs text-gray-500 leading-relaxed">
+                                      നിങ്ങളുടെ ഉൽപ്പന്നങ്ങൾ ചേർക്കുക, അല്ലെങ്കിൽ എക്സൽ വഴി ബൾക്കായി അപ്‌ലോഡ് ചെയ്യുക. വെബ്സൈറ്റ് ടെസ്റ്റ് ചെയ്യാൻ സാമ്പിൾ കളക്ഷൻ ലോഡ് ചെയ്യാവുന്നതാണ്.
+                                    </p>
+                                    <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+                                      <button
+                                        onClick={() => { resetForm(); setActiveTab('add'); }}
+                                        className="px-4 py-2 rounded-xl gold-gradient-btn text-xs font-bold shadow-sm"
+                                      >
+                                        + Add First Product
+                                      </button>
+                                      <button
+                                        onClick={() => setActiveTab('excel')}
+                                        className="px-4 py-2 rounded-xl bg-white border border-gray-300 hover:border-[#D4AF37] text-gray-700 text-xs font-bold shadow-sm"
+                                      >
+                                        Upload Excel Sheet
+                                      </button>
+                                      <button
+                                        onClick={handleLoadSampleShowcase}
+                                        className="px-4 py-2 rounded-xl bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                                      >
+                                        <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                                        <span>Load Sample Showcase (5 Items)</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2 py-4">
+                                    <p className="text-gray-500 italic text-xs">
+                                      No products found matching active search or filters.
+                                    </p>
+                                    <button
+                                      onClick={() => {
+                                        setProductSearch('');
+                                        setStockFilter('all');
+                                      }}
+                                      className="text-xs font-bold text-[#4A0E17] hover:underline"
+                                    >
+                                      Clear Search &amp; Filters
+                                    </button>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           ) : (
@@ -1791,6 +1861,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                 </div>
+              )}
+
+              {/* TAB: HERO SLIDER BANNER MANAGEMENT */}
+              {activeTab === 'banners' && (
+                <BannerSliderManager onToast={onToast} />
               )}
 
             </div>

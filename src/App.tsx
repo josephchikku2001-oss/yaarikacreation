@@ -30,7 +30,9 @@ import {
   Cloud,
   RefreshCw,
   Boxes,
-  ChevronUp
+  ChevronUp,
+  ShoppingBag,
+  Lock
 } from 'lucide-react';
 import { CONTACT_NUMBERS } from './utils/whatsapp';
 
@@ -130,19 +132,16 @@ export default function App() {
       // A. Perform dynamic fetch from Firestore with safe fallback
       FirestoreProductService.fetchProducts()
         .then((cloudProducts) => {
-          if (cloudProducts && cloudProducts.length > 0) {
-            setProducts(cloudProducts);
-            ProductStorage.saveProducts(cloudProducts);
-            setIsFirestoreConnected(true);
-          }
+          const filtered = (cloudProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
+          setProducts(filtered);
+          ProductStorage.saveProducts(filtered);
+          setIsFirestoreConnected(true);
         })
         .catch(() => {
           // Graceful fallback to verified local catalog cache
           setIsFirestoreConnected(false);
-          const cached = ProductStorage.getProducts();
-          if (cached && cached.length > 0) {
-            setProducts(cached);
-          }
+          const cached = ProductStorage.getProducts().filter(p => !ProductStorage.isDeleted(p.id));
+          setProducts(cached);
         })
         .finally(() => {
           setIsLoadingCatalog(false);
@@ -151,12 +150,11 @@ export default function App() {
       // B. Set up Real-Time Dynamic Listener for live updates across all devices
       unsubscribeFirestore = FirestoreProductService.subscribeToProducts(
         (liveProducts) => {
-          if (liveProducts && liveProducts.length > 0) {
-            setProducts(liveProducts);
-            ProductStorage.saveProducts(liveProducts);
-            setIsFirestoreConnected(true);
-            setIsLoadingCatalog(false);
-          }
+          const filtered = (liveProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
+          setProducts(filtered);
+          ProductStorage.saveProducts(filtered);
+          setIsFirestoreConnected(true);
+          setIsLoadingCatalog(false);
         },
         () => {
           setIsFirestoreConnected(false);
@@ -165,9 +163,8 @@ export default function App() {
     } else {
       // If Firebase is not yet configured, load from local IndexedDB storage
       ProductStorage.loadProductsAsync().then((allProducts) => {
-        if (allProducts && allProducts.length > 0) {
-          setProducts(allProducts);
-        }
+        const filtered = (allProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
+        setProducts(filtered);
       });
     }
 
@@ -210,12 +207,13 @@ export default function App() {
     setIsSyncingFirestore(true);
     try {
       const cloudProducts = await FirestoreProductService.fetchProducts();
-      if (cloudProducts && cloudProducts.length > 0) {
-        setProducts(cloudProducts);
-        ProductStorage.saveProducts(cloudProducts);
-        setToastMessage(`✨ Successfully loaded ${cloudProducts.length} live products dynamically from Firebase Firestore!`);
+      const filtered = (cloudProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
+      setProducts(filtered);
+      ProductStorage.saveProducts(filtered);
+      if (filtered.length > 0) {
+        setToastMessage(`✨ Successfully loaded ${filtered.length} live products dynamically from Firebase Firestore!`);
       } else {
-        setToastMessage('Firestore product collection is currently empty.');
+        setToastMessage('Catalog is currently empty (all default products removed).');
       }
     } catch (err: any) {
       console.error('Manual Firestore sync error:', err);
@@ -229,20 +227,21 @@ export default function App() {
     if (isFirebaseConfigured()) {
       FirestoreProductService.fetchProducts()
         .then((cloudProducts) => {
-          if (cloudProducts && cloudProducts.length > 0) {
-            setProducts(cloudProducts);
-            ProductStorage.saveProducts(cloudProducts);
-            setIsFirestoreConnected(true);
-          }
+          const filtered = (cloudProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
+          setProducts(filtered);
+          ProductStorage.saveProducts(filtered);
+          setIsFirestoreConnected(true);
         })
         .catch(() => {
           setIsFirestoreConnected(false);
-          ProductStorage.loadProductsAsync().then(setProducts);
+          ProductStorage.loadProductsAsync().then((items) => {
+            setProducts((items || []).filter(p => !ProductStorage.isDeleted(p.id)));
+          });
         });
     } else {
       setIsFirestoreConnected(false);
       ProductStorage.loadProductsAsync().then((allProducts) => {
-        setProducts(allProducts);
+        setProducts((allProducts || []).filter(p => !ProductStorage.isDeleted(p.id)));
       });
     }
     setIsAdminSetupComplete(AdminStorage.isSetupComplete());
@@ -646,6 +645,44 @@ export default function App() {
                     Browse All Products
                   </button>
                 </>
+              ) : products.length === 0 ? (
+                <div className="py-6 space-y-4 max-w-lg mx-auto">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#2B050B] to-[#4A0E17] text-[#D4AF37] flex items-center justify-center mx-auto border-2 border-[#D4AF37] shadow-lg">
+                    <Sparkles className="w-8 h-8 text-[#FDE047] animate-pulse" />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#4A0E17] bg-[#D4AF37]/20 px-3 py-1 rounded-full border border-[#D4AF37]/40 inline-block">
+                      Exclusive Handloom Edit
+                    </span>
+                    <h3 style={{ fontFamily: 'Georgia, serif' }} className="text-xl sm:text-2xl italic font-bold text-[#32080F]">
+                      New Festive Collection Arriving Soon
+                    </h3>
+                    <p className="text-xs text-gray-600 max-w-md mx-auto leading-relaxed pt-1">
+                      ഞങ്ങളുടെ പുതിയ ട്രെഡീഷണൽ കാസവ് സാരികളും ഡിസൈനർ കോ-ഓർഡ് സെറ്റുകളും ഓൺലൈൻ കാറ്റലോഗിലേക്ക് അപ്‌ലോഡ് ചെയ്തു വരുന്നു. കസ്റ്റം ഓർഡറുകൾക്കും കളക്ഷൻ വിവരങ്ങൾക്കും വാട്സാപ്പ് വഴി ബന്ധപ്പെടാം.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <a
+                      href={`https://wa.me/${CONTACT_NUMBERS[0].value}?text=${encodeURIComponent('Hello Yaarika Collections, I would like to inquire about your upcoming boutique collections and custom orders.')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#25D366] text-white hover:bg-emerald-600 text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>WhatsApp Custom Inquiry</span>
+                    </a>
+
+                    <button
+                      onClick={() => setViewMode('admin')}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#32080F] text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Admin: Add Products</span>
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <>
                   <div className="w-16 h-16 rounded-full bg-[#FAF6F0] text-[#D4AF37] flex items-center justify-center mx-auto border border-[#D4AF37]">
@@ -661,7 +698,7 @@ export default function App() {
                       setActiveCategory('All');
                       setSearchQuery('');
                     }}
-                    className="px-6 py-2.5 rounded-full gold-gradient-btn text-xs font-bold uppercase tracking-wider"
+                    className="px-6 py-2.5 rounded-full bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#32080F] text-xs font-bold uppercase tracking-wider cursor-pointer"
                   >
                     View All Categories
                   </button>
