@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function isValidProduct(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 500 &&
+             data.category is string && data.category.size() <= 150 &&
+             data.price is number && data.price >= 0 &&
+             data.imageUrl is string && data.imageUrl.size() <= 2000000;
+    }
+
+    function isValidInquiry(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.productId is string && data.productId.size() <= 128 &&
+             data.productTitle is string && data.productTitle.size() <= 500;
+    }
+
+    // Public catalog read so ANY visitor on ANY device worldwide sees products
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(productId) && isValidProduct(request.resource.data);
+      allow delete: if isValidId(productId);
+    }
+
+    // Customer WhatsApp inquiry logs
+    match /inquiries/{inquiryId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(inquiryId) && isValidInquiry(request.resource.data);
+      allow delete: if isValidId(inquiryId);
+    }
+
+    // Connection health check document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

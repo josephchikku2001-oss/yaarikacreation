@@ -133,8 +133,13 @@ export default function App() {
       FirestoreProductService.fetchProducts()
         .then((cloudProducts) => {
           const filtered = (cloudProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
-          setProducts(filtered);
-          ProductStorage.saveProducts(filtered);
+          if (filtered.length > 0) {
+            setProducts(filtered);
+            ProductStorage.saveProducts(filtered);
+          } else if (syncProducts.length > 0) {
+            // If cloud database was just provisioned and is empty, auto-upload current catalog so it's live for all users worldwide
+            FirestoreProductService.syncAllToFirestore(syncProducts).catch(() => {});
+          }
           setIsFirestoreConnected(true);
         })
         .catch(() => {

@@ -1,0 +1,122 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Boutique handloom and designer wear catalog item",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique product identifier"
+        },
+        "title": {
+          "type": "string",
+          "description": "Name or title of the ethnic product"
+        },
+        "category": {
+          "type": "string",
+          "description": "Product category (Traditional Sarees, Co-ord Sets, etc.)"
+        },
+        "price": {
+          "type": "number",
+          "description": "Selling price in INR"
+        },
+        "originalPrice": {
+          "type": "number",
+          "description": "Original MRP price in INR"
+        },
+        "inStock": {
+          "type": "boolean",
+          "description": "Stock availability flag"
+        },
+        "stockCount": {
+          "type": "number",
+          "description": "Total available quantity"
+        },
+        "sizeStock": {
+          "type": "object",
+          "description": "Per-size stock breakdown"
+        },
+        "isNewArrival": {
+          "type": "boolean",
+          "description": "Flag for new arrivals"
+        },
+        "sizes": {
+          "type": "array",
+          "description": "Available size tags"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Primary high-resolution image URL or data URI"
+        },
+        "images": {
+          "type": "array",
+          "description": "Gallery image URLs"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the garment"
+        },
+        "fabricDetails": {
+          "type": "string",
+          "description": "Fabric material and weave details"
+        },
+        "featured": {
+          "type": "boolean",
+          "description": "Highlight on home showcase"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "title", "category", "price", "imageUrl"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Customer WhatsApp order inquiry log",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique inquiry log ID"
+        },
+        "productId": {
+          "type": "string",
+          "description": "ID of product inquired"
+        },
+        "productTitle": {
+          "type": "string",
+          "description": "Title of product inquired"
+        },
+        "selectedSize": {
+          "type": "string",
+          "description": "Size requested by customer"
+        },
+        "phoneContact": {
+          "type": "string",
+          "description": "Direct WhatsApp desk contacted"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp of inquiry"
+        }
+      },
+      "required": ["id", "productId", "productTitle", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Global boutique catalog products visible to any visitor across all devices"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "Inquiry",
+      "description": "Customer inquiry records"
+    }
+  }
+}

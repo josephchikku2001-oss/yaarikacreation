@@ -10,11 +10,11 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, 
-  initializeFirestore,
   setLogLevel,
   collection, 
   doc, 
   getDocs, 
+  getDocFromServer,
   setDoc, 
   deleteDoc, 
   query, 
@@ -24,6 +24,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { Product, InquiryLog } from '../types';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 // Silence verbose connection timeout info logs in sandboxed/offline environments
 try {
@@ -41,15 +42,7 @@ export interface FirebaseConfig {
 }
 
 // Built-in Provisioned Firebase configuration for cross-device cloud catalog persistence
-export const DEFAULT_FIREBASE_CONFIG: FirebaseConfig = {
-  projectId: "handy-aloe-36shk",
-  appId: "1:479067422881:web:fdd52c84b0c6f5fc08b0e0",
-  apiKey: "AIzaSyApU6KQW6IVWxY4JrBFMpzMD2qkr9Z3f9s",
-  authDomain: "handy-aloe-36shk.firebaseapp.com",
-  firestoreDatabaseId: "ai-studio-yaarikacollectio-03251ed0-36f6-46e0-afaa-d5e07e41f99e",
-  storageBucket: "handy-aloe-36shk.firebasestorage.app",
-  messagingSenderId: "479067422881"
-};
+export const DEFAULT_FIREBASE_CONFIG: FirebaseConfig = firebaseConfig;
 
 const FIREBASE_CONFIG_STORAGE_KEY = 'yaarika_firebase_custom_config_v2';
 
@@ -75,9 +68,6 @@ export function getSavedFirebaseConfig(): FirebaseConfig {
 export function saveFirebaseConfig(config: FirebaseConfig): void {
   try {
     localStorage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(config));
-    cachedApp = null;
-    cachedAuth = null;
-    cachedDb = null;
   } catch (e) {
     console.error('Failed to save Firebase config:', e);
   }
@@ -86,85 +76,92 @@ export function saveFirebaseConfig(config: FirebaseConfig): void {
 export function removeFirebaseConfig(): void {
   try {
     localStorage.removeItem(FIREBASE_CONFIG_STORAGE_KEY);
-    cachedApp = null;
-    cachedAuth = null;
-    cachedDb = null;
   } catch (e) {}
 }
 
-let cachedApp: FirebaseApp | null = null;
-let cachedAuth: Auth | null = null;
-let cachedDb: Firestore | null = null;
+// Global initialized instances
+export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth: Auth = getAuth(app);
 
-export function getFirebaseApp(): FirebaseApp | null {
-  if (cachedApp) return cachedApp;
-
-  const config = getSavedFirebaseConfig();
-  if (!config || !config.apiKey || !config.projectId) {
-    return null;
-  }
-
-  try {
-    if (getApps().length > 0) {
-      cachedApp = getApp();
-    } else {
-      cachedApp = initializeApp(config);
-    }
-    return cachedApp;
-  } catch (e) {
-    console.warn('Failed to initialize Firebase App:', e);
-    return null;
-  }
+export function getFirebaseApp(): FirebaseApp {
+  return app;
 }
 
-export function getFirebaseAuth(): Auth | null {
-  if (cachedAuth) return cachedAuth;
-  const app = getFirebaseApp();
-  if (!app) return null;
-
-  try {
-    cachedAuth = getAuth(app);
-    return cachedAuth;
-  } catch (e) {
-    console.warn('Failed to get Firebase Auth:', e);
-    return null;
-  }
+export function getFirebaseAuth(): Auth {
+  return auth;
 }
 
-export function getFirebaseFirestore(): Firestore | null {
-  if (cachedDb) return cachedDb;
-  const app = getFirebaseApp();
-  if (!app) return null;
-
-  const config = getSavedFirebaseConfig();
-  const firestoreSettings = {
-    experimentalForceLongPolling: true,
-    experimentalAutoDetectLongPolling: false
-  };
-
-  try {
-    if (config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)') {
-      cachedDb = initializeFirestore(app, firestoreSettings, config.firestoreDatabaseId);
-    } else {
-      cachedDb = initializeFirestore(app, firestoreSettings);
-    }
-    return cachedDb;
-  } catch (e) {
-    try {
-      if (config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)') {
-        cachedDb = getFirestore(app, config.firestoreDatabaseId);
-      } else {
-        cachedDb = getFirestore(app);
-      }
-      return cachedDb;
-    } catch (err) {
-      return null;
-    }
-  }
+export function getFirebaseFirestore(): Firestore {
+  return db;
 }
 
 export function isFirebaseConfigured(): boolean {
-  return true; // Active with provisioned cloud database
+  return true;
+}
+
+// Validate connection to Firestore on boot
+export async function testConnection(): Promise<boolean> {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+    return true;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn("Please check your Firebase configuration or network connection.");
+    }
+    return false;
+  }
+}
+
+// Test connection on boot
+testConnection();
+
+// Standard Error Handling conforming to Firebase Skill
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
+      providerInfo: auth?.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
 }
 
 // Helper to convert Firestore Document to strongly-typed normalized Product
@@ -209,63 +206,45 @@ function parseFirestoreDocToProduct(id: string, data: any): Product {
 
 // FIRESTORE PRODUCT SERVICE FOR SEAMLESS MULTI-DEVICE SYNC
 export const FirestoreProductService = {
-  // Fetch all products from Firestore with safe timeout
+  // Fetch all products from Firestore
   async fetchProducts(): Promise<Product[]> {
-    const db = getFirebaseFirestore();
-    if (!db) {
-      throw new Error('Firestore is not configured');
-    }
-
     try {
       const colRef = collection(db, 'products');
+      let snapshot;
+      try {
+        const q = query(colRef, orderBy('createdAt', 'desc'));
+        snapshot = await getDocs(q);
+      } catch {
+        snapshot = await getDocs(colRef);
+      }
 
-      const queryOperation = (async () => {
-        let snapshot;
-        try {
-          const q = query(colRef, orderBy('createdAt', 'desc'));
-          snapshot = await getDocs(q);
-        } catch (orderErr) {
-          snapshot = await getDocs(colRef);
-        }
-
-        const products: Product[] = [];
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          products.push(parseFirestoreDocToProduct(docSnap.id, data));
-        });
-
-        // Sort client-side by date if available
-        products.sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeB - timeA;
-        });
-
-        return products;
-      })();
-
-      // 4-second timeout prevents 10-second backend hang in sandboxed or quota-limited environments
-      const timeoutPromise = new Promise<Product[]>((_, reject) => {
-        setTimeout(() => reject(new Error('Firestore connection timeout, using offline cache')), 4000);
+      const products: Product[] = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        products.push(parseFirestoreDocToProduct(docSnap.id, data));
       });
 
-      return await Promise.race([queryOperation, timeoutPromise]);
+      // Sort client-side by date if available
+      products.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      return products;
     } catch (e: any) {
-      // Return gracefully rejected promise for fallback
+      if (e?.message?.includes('insufficient permissions')) {
+        handleFirestoreError(e, OperationType.LIST, 'products');
+      }
       throw e;
     }
   },
 
   // Save/Add a single product to Firestore
   async saveProduct(product: Product): Promise<void> {
-    const db = getFirebaseFirestore();
-    if (!db) {
-      throw new Error('Firestore is not configured');
-    }
-
     try {
       const docRef = doc(db, 'products', product.id);
-      const savePromise = setDoc(docRef, {
+      await setDoc(docRef, {
         id: product.id,
         title: product.title,
         category: product.category,
@@ -284,88 +263,74 @@ export const FirestoreProductService = {
         createdAt: product.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
-
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error('Firestore save timed out')), 5000);
-      });
-
-      await Promise.race([savePromise, timeoutPromise]);
-    } catch (e) {
-      console.warn('Could not sync product directly to cloud Firestore:', e);
+    } catch (e: any) {
+      if (e?.message?.includes('insufficient permissions')) {
+        handleFirestoreError(e, OperationType.WRITE, `products/${product.id}`);
+      }
       throw e;
     }
   },
 
   // Delete a product from Firestore
   async deleteProduct(productId: string): Promise<void> {
-    const db = getFirebaseFirestore();
-    if (!db) {
-      throw new Error('Firestore is not configured');
-    }
-
     try {
       const docRef = doc(db, 'products', productId);
-      const deletePromise = deleteDoc(docRef);
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error('Firestore delete timed out')), 5000);
-      });
-      await Promise.race([deletePromise, timeoutPromise]);
-    } catch (e) {
-      console.warn('Could not sync product deletion directly to cloud Firestore:', e);
+      await deleteDoc(docRef);
+    } catch (e: any) {
+      if (e?.message?.includes('insufficient permissions')) {
+        handleFirestoreError(e, OperationType.DELETE, `products/${productId}`);
+      }
       throw e;
     }
   },
 
   // Bulk sync full catalog to Firestore
   async syncAllToFirestore(products: Product[]): Promise<number> {
-    const db = getFirebaseFirestore();
-    if (!db) {
-      throw new Error('Firestore is not configured');
-    }
+    try {
+      let syncedCount = 0;
+      // Batch in chunks of 250
+      for (let i = 0; i < products.length; i += 250) {
+        const chunk = products.slice(i, i + 250);
+        const batch = writeBatch(db);
 
-    let syncedCount = 0;
-    // Batch in chunks of 250
-    for (let i = 0; i < products.length; i += 250) {
-      const chunk = products.slice(i, i + 250);
-      const batch = writeBatch(db);
+        for (const p of chunk) {
+          const docRef = doc(db, 'products', p.id);
+          batch.set(docRef, {
+            id: p.id,
+            title: p.title,
+            category: p.category,
+            price: p.price,
+            originalPrice: p.originalPrice || null,
+            inStock: p.inStock,
+            stockCount: p.stockCount !== undefined ? p.stockCount : null,
+            sizeStock: p.sizeStock || {},
+            isNewArrival: Boolean(p.isNewArrival),
+            sizes: p.sizes || ['Free Size'],
+            imageUrl: p.imageUrl,
+            images: p.images || (p.imageUrl ? [p.imageUrl] : []),
+            description: p.description || '',
+            fabricDetails: p.fabricDetails || '',
+            featured: Boolean(p.featured),
+            createdAt: p.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+          syncedCount++;
+        }
 
-      for (const p of chunk) {
-        const docRef = doc(db, 'products', p.id);
-        batch.set(docRef, {
-          id: p.id,
-          title: p.title,
-          category: p.category,
-          price: p.price,
-          originalPrice: p.originalPrice || null,
-          inStock: p.inStock,
-          stockCount: p.stockCount !== undefined ? p.stockCount : null,
-          sizeStock: p.sizeStock || {},
-          isNewArrival: Boolean(p.isNewArrival),
-          sizes: p.sizes || ['Free Size'],
-          imageUrl: p.imageUrl,
-          images: p.images || (p.imageUrl ? [p.imageUrl] : []),
-          description: p.description || '',
-          fabricDetails: p.fabricDetails || '',
-          featured: Boolean(p.featured),
-          createdAt: p.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-        syncedCount++;
+        await batch.commit();
       }
 
-      await batch.commit();
+      return syncedCount;
+    } catch (e: any) {
+      if (e?.message?.includes('insufficient permissions')) {
+        handleFirestoreError(e, OperationType.WRITE, 'products');
+      }
+      throw e;
     }
-
-    return syncedCount;
   },
 
   // Real-time listener for multi-device instant updates
   subscribeToProducts(onUpdate: (products: Product[]) => void, onError?: (err: Error) => void): (() => void) {
-    const db = getFirebaseFirestore();
-    if (!db) {
-      return () => {};
-    }
-
     try {
       const colRef = collection(db, 'products');
       let isUnsubscribed = false;
@@ -387,11 +352,15 @@ export const FirestoreProductService = {
 
         onUpdate(products);
       }, (err) => {
-        // Stop retrying stream if quota is exhausted or connection refused to avoid repeated 10s timeout warnings
         isUnsubscribed = true;
         try {
           unsubscribe();
         } catch {}
+        if ((err as any)?.message?.includes('insufficient permissions')) {
+          try {
+            handleFirestoreError(err, OperationType.LIST, 'products');
+          } catch {}
+        }
         if (onError) onError(err);
       });
 
@@ -401,20 +370,20 @@ export const FirestoreProductService = {
           unsubscribe();
         } catch {}
       };
-    } catch (e) {
+    } catch {
       return () => {};
     }
   },
 
   // Log WhatsApp Inquiry to Firestore
   async logInquiry(inquiry: InquiryLog): Promise<void> {
-    const db = getFirebaseFirestore();
-    if (!db) return;
-
     try {
       const docRef = doc(db, 'inquiries', inquiry.id);
       await setDoc(docRef, inquiry, { merge: true });
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message?.includes('insufficient permissions')) {
+        handleFirestoreError(e, OperationType.WRITE, `inquiries/${inquiry.id}`);
+      }
       console.warn('Could not log inquiry to Firestore:', e);
     }
   }
@@ -423,11 +392,6 @@ export const FirestoreProductService = {
 // FIREBASE AUTH SERVICE
 export const FirebaseAuthService = {
   async signIn(email: string, pass: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      return { success: false, error: 'Firebase is not initialized.' };
-    }
-
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
       return { success: true, user: cred.user };
@@ -448,11 +412,6 @@ export const FirebaseAuthService = {
   },
 
   async signUpAdmin(email: string, pass: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      return { success: false, error: 'Firebase is not initialized.' };
-    }
-
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
       return { success: true, user: cred.user };
@@ -463,23 +422,16 @@ export const FirebaseAuthService = {
   },
 
   async signOut(): Promise<void> {
-    const auth = getFirebaseAuth();
     if (auth) {
       await firebaseSignOut(auth);
     }
   },
 
   onAuthChange(callback: (user: User | null) => void): (() => void) {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      callback(null);
-      return () => {};
-    }
     return onAuthStateChanged(auth, callback);
   },
 
   getCurrentUser(): User | null {
-    const auth = getFirebaseAuth();
-    return auth ? auth.currentUser : null;
+    return auth.currentUser;
   }
 };
