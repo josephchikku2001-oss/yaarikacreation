@@ -175,6 +175,14 @@ const REMOVED_DEFAULT_IDS = [
 function checkAndPerformWipe(): void {
   try {
     if (typeof window !== 'undefined') {
+      const cleanSlateFlag = 'yaarika_clean_slate_v11';
+      const isCleaned = localStorage.getItem(cleanSlateFlag);
+      if (!isCleaned) {
+        localStorage.removeItem(KEYS.PRODUCTS);
+        localStorage.removeItem(KEYS.CUSTOM_PRODUCTS);
+        localStorage.setItem(cleanSlateFlag, 'true');
+      }
+
       const isWiped = localStorage.getItem(KEYS.CATALOG_WIPED_FLAG);
       if (!isWiped) {
         // Clean obsolete version storage keys

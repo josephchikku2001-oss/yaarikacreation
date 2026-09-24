@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetailPage } from './components/ProductDetailPage';
+import { Welcome3DIntro } from './components/Welcome3DIntro';
 import { AdminPortal } from './components/AdminPortal';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
@@ -68,6 +69,7 @@ export default function App() {
   const [isFirestoreConnected, setIsFirestoreConnected] = useState<boolean>(false);
   const [isSyncingFirestore, setIsSyncingFirestore] = useState<boolean>(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(false);
+  const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(true);
 
   // New Filters & Sorting States
   const [selectedSort, setSelectedSort] = useState<SortOption>('featured');
@@ -375,6 +377,11 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#FDFCF8] text-[#1A1A1A]">
       
+      {/* 3D WELCOME INTRO OVERLAY */}
+      {showWelcomeIntro && (
+        <Welcome3DIntro onEnterCatalog={() => setShowWelcomeIntro(false)} />
+      )}
+
       {/* HEADER NAVBAR */}
       <Header
         activeCategory={activeCategory}
