@@ -341,11 +341,15 @@ function loadInitialCatalog(): Product[] {
     const processedIds = new Set(processedBase.map(p => p.id));
     const newInitialProducts = INITIAL_PRODUCTS.filter(p => !processedIds.has(p.id) && !deletedIds.has(p.id));
 
-    // Merge custom admin products, ensuring no duplicates
-    const existingIds = new Set([...processedBase, ...newInitialProducts].map(p => p.id));
-    const uniqueCustom = customItems.filter(p => !existingIds.has(p.id) && !deletedIds.has(p.id));
+    // Merge custom admin products, ensuring all custom items are preserved at the top
+    const uniqueCustom = customItems.filter(p => !deletedIds.has(p.id));
+    const customIds = new Set(uniqueCustom.map(p => p.id));
 
-    const finalCatalog = [...uniqueCustom, ...processedBase, ...newInitialProducts];
+    const finalCatalog = [
+      ...uniqueCustom, 
+      ...processedBase.filter(p => !customIds.has(p.id)), 
+      ...newInitialProducts.filter(p => !customIds.has(p.id))
+    ];
 
     // Cache to localStorage
     try {
@@ -557,15 +561,19 @@ export const ProductStorage = {
 
     // Permanently record in dedicated custom products storage
     const customItems = getStoredCustomProducts();
-    saveStoredCustomProducts([...createdList, ...customItems]);
+    const combinedCustom = [...createdList, ...customItems.filter(p => !createdList.some(c => c.id === p.id))];
+    saveStoredCustomProducts(combinedCustom);
 
-    const updated = [...createdList, ...currentProducts];
+    const updated = [...createdList, ...currentProducts.filter(p => !createdList.some(c => c.id === p.id))];
     this.saveProducts(updated);
 
     // Sync to Firestore if configured
     if (isFirebaseConfigured()) {
       FirestoreProductService.syncAllToFirestore(createdList).catch(err => {
         console.warn('Background Firestore bulk sync note:', err?.message || err);
+      });
+      createdList.forEach(item => {
+        FirestoreProductService.saveProduct(item).catch(() => {});
       });
     }
 
