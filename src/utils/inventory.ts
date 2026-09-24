@@ -39,22 +39,28 @@ export function getSizeStockCount(product: Product, size: SizeType): number {
  * Checks if a product is in stock overall, or for a specific selected size.
  */
 export function isProductInStock(product: Product, selectedSize?: SizeType): boolean {
-  if (!product.inStock) return false;
+  if (product.inStock === false) return false;
 
   // If size is selected and has specific stock tracked
   if (selectedSize && product.sizeStock && product.sizeStock[selectedSize] !== undefined && product.sizeStock[selectedSize] !== null) {
-    return Number(product.sizeStock[selectedSize]) > 0;
+    const sizeQty = Number(product.sizeStock[selectedSize]);
+    if (!isNaN(sizeQty)) {
+      return sizeQty > 0;
+    }
   }
 
   // If sizeStock is defined for all sizes, check if at least one size is > 0
   if (product.sizeStock && Object.keys(product.sizeStock).length > 0) {
     const total = Object.values(product.sizeStock).reduce((acc, count) => acc + (Number(count) || 0), 0);
-    return total > 0;
+    if (total > 0) return true;
+    // If all sizeStock numbers were 0 but admin marked inStock: true, honor inStock flag
+    return Boolean(product.inStock);
   }
 
   // If product.stockCount is explicitly set
   if (product.stockCount !== undefined && product.stockCount !== null) {
-    return Number(product.stockCount) > 0;
+    const count = Number(product.stockCount);
+    if (!isNaN(count) && count > 0) return true;
   }
 
   return Boolean(product.inStock);
@@ -64,15 +70,21 @@ export function isProductInStock(product: Product, selectedSize?: SizeType): boo
  * Checks if a specific size of a product is available in stock.
  */
 export function isSizeInStock(product: Product, size: SizeType): boolean {
-  if (!product.inStock) return false;
-  if (!product.sizes.includes(size)) return false;
+  if (product.inStock === false) return false;
+  if (product.sizes && product.sizes.length > 0 && !product.sizes.includes(size)) return false;
 
   if (product.sizeStock && product.sizeStock[size] !== undefined && product.sizeStock[size] !== null) {
-    return Number(product.sizeStock[size]) > 0;
+    const qty = Number(product.sizeStock[size]);
+    if (!isNaN(qty)) {
+      return qty > 0;
+    }
   }
 
   if (product.stockCount !== undefined && product.stockCount !== null) {
-    return Number(product.stockCount) > 0;
+    const count = Number(product.stockCount);
+    if (!isNaN(count)) {
+      return count > 0;
+    }
   }
 
   return Boolean(product.inStock);

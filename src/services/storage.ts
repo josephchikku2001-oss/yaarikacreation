@@ -171,12 +171,13 @@ const REMOVED_DEFAULT_IDS = [
   'prod-coord-01'
 ];
 
-// Ensure previous obsolete version keys are cleaned without wiping the active catalog
+// Ensure legacy removed products remain deleted without wiping active custom catalog
 function checkAndPerformWipe(): void {
   try {
     if (typeof window !== 'undefined') {
       const isWiped = localStorage.getItem(KEYS.CATALOG_WIPED_FLAG);
       if (!isWiped) {
+        // Clean obsolete version storage keys
         localStorage.removeItem('yaarika_products_v4');
         localStorage.removeItem('yaarika_products_v5');
         localStorage.removeItem('yaarika_products_v6');
@@ -188,24 +189,13 @@ function checkAndPerformWipe(): void {
         localStorage.removeItem('yaarika_admin_custom_products_v7');
         localStorage.removeItem('yaarika_admin_custom_products_v8');
         localStorage.removeItem('yaarika_admin_custom_products_v9');
-        localStorage.removeItem('yaarika_admin_custom_edits_v5');
-        localStorage.removeItem('yaarika_admin_custom_edits_v6');
-        localStorage.removeItem('yaarika_admin_custom_edits_v7');
-        localStorage.removeItem('yaarika_admin_custom_edits_v8');
-        localStorage.removeItem('yaarika_admin_custom_edits_v9');
-        localStorage.removeItem('yaarika_admin_deleted_ids_v5');
-        localStorage.removeItem('yaarika_admin_deleted_ids_v6');
-        localStorage.removeItem('yaarika_admin_deleted_ids_v7');
-        localStorage.removeItem('yaarika_admin_deleted_ids_v8');
-        localStorage.removeItem('yaarika_admin_deleted_ids_v9');
-        localStorage.removeItem(KEYS.PRODUCTS);
-        localStorage.removeItem(KEYS.CUSTOM_PRODUCTS);
-        localStorage.removeItem(KEYS.CUSTOM_EDITS);
+
         // Persist deleted IDs for the 5 removed items
-        localStorage.setItem(KEYS.DELETED_IDS, JSON.stringify(REMOVED_DEFAULT_IDS));
-        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify([]));
+        const existingDeleted = getStoredDeletedIds();
+        const combinedDeleted = Array.from(new Set([...existingDeleted, ...REMOVED_DEFAULT_IDS]));
+        saveStoredDeletedIds(combinedDeleted);
+
         localStorage.setItem(KEYS.CATALOG_WIPED_FLAG, 'true');
-        memoryProductsCache = [];
 
         // Also clean up from Firestore in background if configured
         if (isFirebaseConfigured()) {
@@ -443,11 +433,70 @@ export const ProductStorage = {
     broadcastProductsUpdate(products);
   },
 
+  // Safely merges cloud products without ever losing locally uploaded products
+  mergeWithCloudProducts(cloudProducts: Product[]): Product[] {
+    const deletedIds = new Set(getStoredDeletedIds());
+    const customItems = getStoredCustomProducts().filter(p => !deletedIds.has(p.id));
+    const validCloud = (cloudProducts || []).filter(p => p && p.id && !deletedIds.has(p.id));
+
+    const map = new Map<string, Product>();
+
+    // 1. Put cloud products
+    validCloud.forEach(p => {
+      map.set(p.id, p);
+    });
+
+    // 2. Put local custom items (never lose newly uploaded items from admin)
+    customItems.forEach(p => {
+      if (!map.has(p.id)) {
+        map.set(p.id, p);
+      }
+    });
+
+    const merged = Array.from(map.values());
+    this.saveProducts(merged);
+
+    // Sync any missing local custom products up to Firestore in the background
+    if (isFirebaseConfigured()) {
+      customItems.forEach(item => {
+        FirestoreProductService.saveProduct(item).catch(() => {});
+      });
+    }
+
+    return merged;
+  },
+
   addProduct(newProduct: Omit<Product, 'id' | 'createdAt'>): Product {
     const currentProducts = this.getProducts();
 
+    const sizes = (newProduct.sizes && newProduct.sizes.length > 0) ? newProduct.sizes : ['M', 'L', 'XL', 'XXL'];
+    const inStock = newProduct.inStock !== false;
+
+    // Ensure valid sizeStock
+    const sizeStock: Partial<Record<string, number>> = { ...(newProduct.sizeStock || {}) };
+    let calculatedUnits = 0;
+    sizes.forEach(s => {
+      const rawCount = sizeStock[s];
+      const count = rawCount !== undefined && rawCount !== null && !isNaN(Number(rawCount)) 
+        ? Math.max(0, Number(rawCount)) 
+        : (inStock ? 5 : 0);
+      sizeStock[s] = count;
+      calculatedUnits += count;
+    });
+
+    if (inStock && calculatedUnits === 0) {
+      sizes.forEach(s => {
+        sizeStock[s] = 5;
+      });
+      calculatedUnits = sizes.length * 5;
+    }
+
     const createdProduct: Product = {
       ...newProduct,
+      sizes: sizes as Product['sizes'],
+      inStock,
+      stockCount: calculatedUnits,
+      sizeStock,
       id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       createdAt: new Date().toISOString()
     };
@@ -463,7 +512,7 @@ export const ProductStorage = {
     // Sync to Firestore if configured
     if (isFirebaseConfigured()) {
       FirestoreProductService.saveProduct(createdProduct).catch(err => {
-        console.warn('Background Firestore save warning:', err);
+        console.warn('Background Firestore save note (quota or offline):', err?.message || err);
       });
     }
 
@@ -473,11 +522,38 @@ export const ProductStorage = {
   bulkAddProducts(newItems: Array<Omit<Product, 'id' | 'createdAt'>>): { added: number; total: number } {
     const currentProducts = this.getProducts();
 
-    const createdList: Product[] = newItems.map((item, idx) => ({
-      ...item,
-      id: `prod-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
-      createdAt: new Date().toISOString()
-    }));
+    const createdList: Product[] = newItems.map((item, idx) => {
+      const sizes = (item.sizes && item.sizes.length > 0) ? item.sizes : ['M', 'L', 'XL', 'XXL'];
+      const inStock = item.inStock !== false;
+
+      const sizeStock: Partial<Record<string, number>> = { ...(item.sizeStock || {}) };
+      let calculatedUnits = 0;
+      sizes.forEach(s => {
+        const rawCount = sizeStock[s];
+        const count = rawCount !== undefined && rawCount !== null && !isNaN(Number(rawCount)) 
+          ? Math.max(0, Number(rawCount)) 
+          : (inStock ? 5 : 0);
+        sizeStock[s] = count;
+        calculatedUnits += count;
+      });
+
+      if (inStock && calculatedUnits === 0) {
+        sizes.forEach(s => {
+          sizeStock[s] = 5;
+        });
+        calculatedUnits = sizes.length * 5;
+      }
+
+      return {
+        ...item,
+        sizes: sizes as Product['sizes'],
+        inStock,
+        stockCount: calculatedUnits,
+        sizeStock,
+        id: `prod-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        createdAt: new Date().toISOString()
+      };
+    });
 
     // Permanently record in dedicated custom products storage
     const customItems = getStoredCustomProducts();
@@ -489,7 +565,7 @@ export const ProductStorage = {
     // Sync to Firestore if configured
     if (isFirebaseConfigured()) {
       FirestoreProductService.syncAllToFirestore(createdList).catch(err => {
-        console.warn('Background Firestore bulk sync warning:', err);
+        console.warn('Background Firestore bulk sync note:', err?.message || err);
       });
     }
 

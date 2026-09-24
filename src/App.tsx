@@ -127,19 +127,14 @@ export default function App() {
     // 2. Check if Firebase Firestore is configured
     if (isFirebaseConfigured()) {
       setIsFirestoreConnected(false);
-      setIsLoadingCatalog(syncProducts.length === 0);
+      setIsLoadingCatalog(false); // Render instantly from local cache without blocking
 
-      // A. Perform dynamic fetch from Firestore with safe fallback
+      // A. Perform dynamic fetch from Firestore with safe fallback & merge
       FirestoreProductService.fetchProducts()
         .then((cloudProducts) => {
-          const filtered = (cloudProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
-          if (filtered.length > 0) {
-            setProducts(filtered);
-            ProductStorage.saveProducts(filtered);
-          } else if (syncProducts.length > 0) {
-            // If cloud database was just provisioned and is empty, auto-upload current catalog so it's live for all users worldwide
-            FirestoreProductService.syncAllToFirestore(syncProducts).catch(() => {});
-          }
+          const merged = ProductStorage.mergeWithCloudProducts(cloudProducts);
+          const filtered = merged.filter(p => !ProductStorage.isDeleted(p.id));
+          setProducts(filtered);
           setIsFirestoreConnected(true);
         })
         .catch(() => {
@@ -147,25 +142,22 @@ export default function App() {
           setIsFirestoreConnected(false);
           const cached = ProductStorage.getProducts().filter(p => !ProductStorage.isDeleted(p.id));
           setProducts(cached);
-        })
-        .finally(() => {
-          setIsLoadingCatalog(false);
         });
 
       // B. Set up Real-Time Dynamic Listener for live updates across all devices
       unsubscribeFirestore = FirestoreProductService.subscribeToProducts(
         (liveProducts) => {
-          const filtered = (liveProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
+          const merged = ProductStorage.mergeWithCloudProducts(liveProducts);
+          const filtered = merged.filter(p => !ProductStorage.isDeleted(p.id));
           setProducts(filtered);
-          ProductStorage.saveProducts(filtered);
           setIsFirestoreConnected(true);
-          setIsLoadingCatalog(false);
         },
         () => {
           setIsFirestoreConnected(false);
         }
       );
     } else {
+      setIsLoadingCatalog(false);
       // If Firebase is not yet configured, load from local IndexedDB storage
       ProductStorage.loadProductsAsync().then((allProducts) => {
         const filtered = (allProducts || []).filter(p => !ProductStorage.isDeleted(p.id));

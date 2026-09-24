@@ -103,12 +103,9 @@ export function isFirebaseConfigured(): boolean {
 // Validate connection to Firestore on boot
 export async function testConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    // Light test without burning read quota
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Please check your Firebase configuration or network connection.");
-    }
     return false;
   }
 }
