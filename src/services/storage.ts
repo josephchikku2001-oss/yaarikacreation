@@ -373,19 +373,6 @@ export const ProductStorage = {
       }
       // Populate IndexedDB in background
       persistToIndexedDB(memoryProductsCache);
-      // Try background fetch from IndexedDB if more items exist
-      openIndexedDB().then(db => {
-        const tx = db.transaction(IDB_CONFIG.STORE_NAME, 'readonly');
-        const store = tx.objectStore(IDB_CONFIG.STORE_NAME);
-        const getAllReq = store.getAll();
-        getAllReq.onsuccess = () => {
-          if (Array.isArray(getAllReq.result) && getAllReq.result.length > 0) {
-            // If IndexedDB has items, use it
-            memoryProductsCache = getAllReq.result;
-            broadcastProductsUpdate(memoryProductsCache);
-          }
-        };
-      }).catch(() => {});
     }
     return memoryProductsCache;
   },
