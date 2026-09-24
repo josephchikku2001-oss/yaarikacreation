@@ -441,13 +441,13 @@ export const ProductStorage = {
 
     const map = new Map<string, Product>();
 
-    // 1. Put cloud products
-    validCloud.forEach(p => {
+    // 1. Put local custom items FIRST so they take absolute precedence and are never lost on refresh
+    customItems.forEach(p => {
       map.set(p.id, p);
     });
 
-    // 2. Put local custom items (never lose newly uploaded items from admin)
-    customItems.forEach(p => {
+    // 2. Put cloud products for cross-device sync
+    validCloud.forEach(p => {
       if (!map.has(p.id)) {
         map.set(p.id, p);
       }
