@@ -44,7 +44,7 @@ export interface InquiryLog {
   timestamp: string;
 }
 
-export type ViewMode = 'catalog' | 'admin' | 'wishlist';
+export type ViewMode = 'catalog' | 'admin' | 'wishlist' | 'product-detail';
 
 export type SortOption = 'featured' | 'price_low_high' | 'price_high_low' | 'newest';
 

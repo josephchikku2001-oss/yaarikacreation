@@ -1,13 +1,13 @@
 export const CONTACT_NUMBERS = [
-  { display: '+91 9910396693', value: '919910396693', label: 'Primary Order Desk' },
-  { display: '+91 9995592722', value: '919995592722', label: 'Customer Support Desk' }
+  { display: '+91 9995592722', value: '919995592722', label: 'Primary Order Desk' },
+  { display: '+91 9910396693', value: '919910396693', label: 'Customer Support Desk' }
 ];
 
 export function createWhatsAppOrderLink(
   productTitle: string,
   price: number,
   selectedSize?: string,
-  phoneNumber: string = '919910396693'
+  phoneNumber: string = '919995592722'
 ): string {
   const sizeText = selectedSize ? ` (Size: ${selectedSize})` : '';
   const message = `Hello Yaarika Collections, I would like to inquire/order: ${productTitle}${sizeText} - Price: ₹${price}`;
@@ -19,7 +19,7 @@ export function createWhatsAppOrderLink(
   return `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
 }
 
-export function createGeneralWhatsAppLink(phoneNumber: string = '919910396693'): string {
+export function createGeneralWhatsAppLink(phoneNumber: string = '919995592722'): string {
   const message = `Hello Yaarika Collections, I would like to browse your traditional Kerala collection.`;
   const encodedMsg = encodeURIComponent(message);
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');

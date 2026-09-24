@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
-import { ProductDetailModal } from './components/ProductDetailModal';
+import { ProductDetailPage } from './components/ProductDetailPage';
 import { AdminPortal } from './components/AdminPortal';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
@@ -397,19 +397,37 @@ export default function App() {
       {/* MAIN CONTENT AREA */}
       <main className="flex-1">
         
-        {/* HERO BANNER (Only on Catalog Mode & No Active Search) */}
-        {viewMode === 'catalog' && !searchQuery && (
-          <Hero 
-            onSelectCategory={(cat) => {
-              setActiveCategory(cat);
+        {viewMode === 'product-detail' && selectedProduct ? (
+          <ProductDetailPage
+            product={selectedProduct}
+            allProducts={products}
+            wishlist={wishlist}
+            onToggleWishlist={handleToggleWishlist}
+            onSelectProduct={(p) => {
+              setSelectedProduct(p);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            onShopClick={(cat) => {
-              if (cat) setActiveCategory(cat);
-              const el = document.getElementById('catalog-grid');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }} 
+            onBackToCatalog={() => {
+              setViewMode('catalog');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onToast={showToast}
           />
-        )}
+        ) : (
+          <>
+            {/* HERO BANNER (Only on Catalog Mode & No Active Search) */}
+            {viewMode === 'catalog' && !searchQuery && (
+              <Hero 
+                onSelectCategory={(cat) => {
+                  setActiveCategory(cat);
+                }}
+                onShopClick={(cat) => {
+                  if (cat) setActiveCategory(cat);
+                  const el = document.getElementById('catalog-grid');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }} 
+              />
+            )}
 
         {/* CATALOG / WISHLIST CONTAINER */}
         <div id="catalog-grid" className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 md:py-12 w-full">
@@ -713,7 +731,11 @@ export default function App() {
                     product={product}
                     isWishlisted={wishlist.includes(product.id)}
                     onToggleWishlist={handleToggleWishlist}
-                    onQuickView={(p) => setSelectedProduct(p)}
+                    onQuickView={(p) => {
+                      setSelectedProduct(p);
+                      setViewMode('product-detail');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     onToast={showToast}
                   />
                 ))}
@@ -747,6 +769,8 @@ export default function App() {
           )}
 
         </div>
+        </>
+        )}
 
       </main>
 
@@ -757,15 +781,6 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         isAdminSetupComplete={isAdminSetupComplete}
-      />
-
-      {/* QUICK VIEW / DETAIL MODAL */}
-      <ProductDetailModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        isWishlisted={selectedProduct ? wishlist.includes(selectedProduct.id) : false}
-        onToggleWishlist={handleToggleWishlist}
-        onToast={showToast}
       />
 
       {/* ADMIN PORTAL OVERLAY */}
