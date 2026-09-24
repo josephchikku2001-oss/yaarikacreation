@@ -455,11 +455,9 @@ export const ProductStorage = {
     const merged = Array.from(map.values());
     this.saveProducts(merged);
 
-    // Sync any missing local custom products up to Firestore in the background
-    if (isFirebaseConfigured()) {
-      customItems.forEach(item => {
-        FirestoreProductService.saveProduct(item).catch(() => {});
-      });
+    // Sync any missing local custom products up to Firestore in the background (batched)
+    if (isFirebaseConfigured() && customItems.length > 0) {
+      FirestoreProductService.syncAllToFirestore(customItems).catch(() => {});
     }
 
     return merged;
@@ -562,13 +560,10 @@ export const ProductStorage = {
     const updated = [...createdList, ...currentProducts.filter(p => !createdList.some(c => c.id === p.id))];
     this.saveProducts(updated);
 
-    // Sync to Firestore if configured
+    // Sync to Firestore if configured (batched via syncAllToFirestore)
     if (isFirebaseConfigured()) {
       FirestoreProductService.syncAllToFirestore(createdList).catch(err => {
         console.warn('Background Firestore bulk sync note:', err?.message || err);
-      });
-      createdList.forEach(item => {
-        FirestoreProductService.saveProduct(item).catch(() => {});
       });
     }
 
