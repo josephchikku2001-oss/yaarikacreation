@@ -125,14 +125,13 @@ export function isFirebaseConfigured(): boolean {
 export async function testConnection(): Promise<boolean> {
   try {
     // Light test without burning read quota
+    await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
   } catch (error) {
+    console.error("Please check your Firebase configuration.", error);
     return false;
   }
 }
-
-// Test connection on boot
-testConnection();
 
 // Standard Error Handling conforming to Firebase Skill
 export enum OperationType {
@@ -262,19 +261,27 @@ export const FirestoreProductService = {
   async saveProduct(product: Product): Promise<void> {
     try {
       const docRef = doc(db, 'products', product.id);
+      const cleanPrice = typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0;
+      const cleanOrigPrice = product.originalPrice !== undefined && product.originalPrice !== null
+        ? (typeof product.originalPrice === 'number' ? product.originalPrice : parseFloat(String(product.originalPrice)))
+        : null;
+      const cleanStock = product.stockCount !== undefined && product.stockCount !== null
+        ? (typeof product.stockCount === 'number' ? product.stockCount : parseInt(String(product.stockCount)))
+        : null;
+
       await setDoc(docRef, {
         id: product.id,
-        title: product.title,
-        category: product.category,
-        price: product.price,
-        originalPrice: product.originalPrice || null,
-        inStock: product.inStock,
-        stockCount: product.stockCount !== undefined ? product.stockCount : null,
+        title: product.title ? String(product.title).trim() : 'Untitled Product',
+        category: product.category || 'Traditional Sarees',
+        price: isNaN(cleanPrice) ? 0 : cleanPrice,
+        originalPrice: cleanOrigPrice !== null && !isNaN(cleanOrigPrice) ? cleanOrigPrice : null,
+        inStock: product.inStock !== false,
+        stockCount: cleanStock !== null && !isNaN(cleanStock) ? cleanStock : null,
         sizeStock: product.sizeStock || {},
         isNewArrival: Boolean(product.isNewArrival),
-        sizes: product.sizes || ['Free Size'],
-        imageUrl: product.imageUrl,
-        images: product.images || (product.imageUrl ? [product.imageUrl] : []),
+        sizes: Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes : ['Free Size'],
+        imageUrl: product.imageUrl || '',
+        images: Array.isArray(product.images) && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : []),
         description: product.description || '',
         fabricDetails: product.fabricDetails || '',
         featured: Boolean(product.featured),
@@ -282,6 +289,7 @@ export const FirestoreProductService = {
         updatedAt: new Date().toISOString()
       }, { merge: true });
     } catch (e: any) {
+      console.error('Firestore saveProduct error:', e);
       if (e?.message?.includes('insufficient permissions')) {
         handleFirestoreError(e, OperationType.WRITE, `products/${product.id}`);
       }
@@ -302,44 +310,86 @@ export const FirestoreProductService = {
     }
   },
 
+  // Clear all products completely from Firestore
+  async clearAllProductsFromFirestore(): Promise<number> {
+    try {
+      const colRef = collection(db, 'products');
+      const snapshot = await getDocs(colRef);
+      let count = 0;
+      const batch = writeBatch(db);
+      snapshot.forEach(docSnap => {
+        batch.delete(docSnap.ref);
+        count++;
+      });
+      if (count > 0) {
+        await batch.commit();
+      }
+      return count;
+    } catch (e) {
+      console.warn('clearAllProductsFromFirestore warning:', e);
+      return 0;
+    }
+  },
+
   // Bulk sync full catalog to Firestore
   async syncAllToFirestore(products: Product[]): Promise<number> {
     try {
       let syncedCount = 0;
-      // Batch in chunks of 250
-      for (let i = 0; i < products.length; i += 250) {
-        const chunk = products.slice(i, i + 250);
-        const batch = writeBatch(db);
+      // Batch in chunks of 50 for safety
+      for (let i = 0; i < products.length; i += 50) {
+        const chunk = products.slice(i, i + 50);
+        try {
+          const batch = writeBatch(db);
 
-        for (const p of chunk) {
-          const docRef = doc(db, 'products', p.id);
-          batch.set(docRef, {
-            id: p.id,
-            title: p.title,
-            category: p.category,
-            price: p.price,
-            originalPrice: p.originalPrice || null,
-            inStock: p.inStock,
-            stockCount: p.stockCount !== undefined ? p.stockCount : null,
-            sizeStock: p.sizeStock || {},
-            isNewArrival: Boolean(p.isNewArrival),
-            sizes: p.sizes || ['Free Size'],
-            imageUrl: p.imageUrl,
-            images: p.images || (p.imageUrl ? [p.imageUrl] : []),
-            description: p.description || '',
-            fabricDetails: p.fabricDetails || '',
-            featured: Boolean(p.featured),
-            createdAt: p.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-          syncedCount++;
+          for (const p of chunk) {
+            const docRef = doc(db, 'products', p.id);
+            const cleanPrice = typeof p.price === 'number' ? p.price : parseFloat(String(p.price)) || 0;
+            const cleanOrigPrice = p.originalPrice !== undefined && p.originalPrice !== null
+              ? (typeof p.originalPrice === 'number' ? p.originalPrice : parseFloat(String(p.originalPrice)))
+              : null;
+            const cleanStock = p.stockCount !== undefined && p.stockCount !== null
+              ? (typeof p.stockCount === 'number' ? p.stockCount : parseInt(String(p.stockCount)))
+              : null;
+
+            batch.set(docRef, {
+              id: p.id,
+              title: p.title ? String(p.title).trim() : 'Untitled Product',
+              category: p.category || 'Traditional Sarees',
+              price: isNaN(cleanPrice) ? 0 : cleanPrice,
+              originalPrice: cleanOrigPrice !== null && !isNaN(cleanOrigPrice) ? cleanOrigPrice : null,
+              inStock: p.inStock !== false,
+              stockCount: cleanStock !== null && !isNaN(cleanStock) ? cleanStock : null,
+              sizeStock: p.sizeStock || {},
+              isNewArrival: Boolean(p.isNewArrival),
+              sizes: Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : ['Free Size'],
+              imageUrl: p.imageUrl || '',
+              images: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : []),
+              description: p.description || '',
+              fabricDetails: p.fabricDetails || '',
+              featured: Boolean(p.featured),
+              createdAt: p.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+          }
+
+          await batch.commit();
+          syncedCount += chunk.length;
+        } catch (batchErr) {
+          console.warn('Batch commit failed, falling back to individual saveProduct:', batchErr);
+          for (const p of chunk) {
+            try {
+              await this.saveProduct(p);
+              syncedCount++;
+            } catch (singleErr) {
+              console.error(`Failed to save individual product ${p.id}:`, singleErr);
+            }
+          }
         }
-
-        await batch.commit();
       }
 
       return syncedCount;
     } catch (e: any) {
+      console.error('syncAllToFirestore error:', e);
       if (e?.message?.includes('insufficient permissions')) {
         handleFirestoreError(e, OperationType.WRITE, 'products');
       }

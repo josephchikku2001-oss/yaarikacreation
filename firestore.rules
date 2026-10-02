@@ -8,10 +8,8 @@ service cloud.firestore {
 
     function isValidProduct(data) {
       return data.id is string && data.id.size() <= 128 &&
-             data.title is string && data.title.size() <= 500 &&
-             data.category is string && data.category.size() <= 150 &&
-             data.price is number && data.price >= 0 &&
-             data.imageUrl is string && data.imageUrl.size() <= 2000000;
+             data.title is string && data.title.size() <= 1000 &&
+             data.price is number && data.price >= 0;
     }
 
     function isValidInquiry(data) {
@@ -20,7 +18,7 @@ service cloud.firestore {
              data.productTitle is string && data.productTitle.size() <= 500;
     }
 
-    // Public catalog read so ANY visitor on ANY device worldwide sees products
+    // Public catalog: viewable by all visitors worldwide and synchronized across all devices
     match /products/{productId} {
       allow get, list: if true;
       allow create, update: if isValidId(productId) && isValidProduct(request.resource.data);

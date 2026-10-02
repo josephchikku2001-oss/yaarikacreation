@@ -612,6 +612,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Clear All Products
+  const handleClearAllProducts = () => {
+    if (window.confirm('Are you sure you want to remove ALL products from the website and Firestore database? This action cannot be undone.')) {
+      ProductStorage.clearAllProducts();
+      setProducts([]);
+      onRefreshProducts();
+      onToast('All products have been completely removed from the catalog & Firestore database.');
+    }
+  };
+
   // Toggle Stock in product list
   const handleToggleStock = (p: Product) => {
     const updated = ProductStorage.toggleStockStatus(p.id);
@@ -1212,6 +1222,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+                      {products.length > 0 && (
+                        <button
+                          onClick={handleClearAllProducts}
+                          className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                          title="Remove all products from website and Firestore database"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Clear All Products</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => setActiveTab('excel')}
                         className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#4A0E17] border border-[#D4AF37] text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
