@@ -457,7 +457,9 @@ export const ProductStorage = {
 
     // Sync any missing local custom products up to Firestore in the background (batched)
     if (isFirebaseConfigured() && customItems.length > 0) {
-      FirestoreProductService.syncAllToFirestore(customItems).catch(() => {})
+      FirestoreProductService.syncAllToFirestore(customItems).catch(() => {});
+    }
+
     return merged;
   },
 
