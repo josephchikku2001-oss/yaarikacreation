@@ -18,18 +18,23 @@ service cloud.firestore {
              data.productTitle is string && data.productTitle.size() <= 500;
     }
 
-    // Public catalog: viewable by all visitors worldwide and synchronized across all devices
-    match /products/{productId} {
-      allow get, list: if true;
-      allow create, update: if isValidId(productId) && isValidProduct(request.resource.data);
-      allow delete: if isValidId(productId);
+    // Only allow writes if authenticated (assuming basic auth for now, can be hardened later)
+    function isAdmin() {
+      return request.auth != null;
     }
 
-    // Customer WhatsApp inquiry logs
-    match /inquiries/{inquiryId} {
+    // Public catalog: viewable by all visitors worldwide
+    match /products/{productId} {
       allow get, list: if true;
-      allow create, update: if isValidId(inquiryId) && isValidInquiry(request.resource.data);
-      allow delete: if isValidId(inquiryId);
+      allow create, update: if isAdmin() && isValidId(productId) && isValidProduct(request.resource.data);
+      allow delete: if isAdmin() && isValidId(productId);
+    }
+
+    // Customer WhatsApp inquiry logs: Allow creating, but not deleting/updating
+    match /inquiries/{inquiryId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(inquiryId) && isValidInquiry(request.resource.data);
+      allow update, delete: if false;
     }
 
     // Connection health check document

@@ -172,6 +172,7 @@ const REMOVED_DEFAULT_IDS = [
 ];
 
 // Ensure legacy removed products remain deleted without wiping active custom catalog
+/*
 function checkAndPerformWipe(): void {
   try {
     if (typeof window !== 'undefined') {
@@ -219,6 +220,7 @@ function checkAndPerformWipe(): void {
 }
 
 checkAndPerformWipe();
+*/
 
 function openIndexedDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
