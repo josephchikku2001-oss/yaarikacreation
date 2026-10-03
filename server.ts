@@ -1,7 +1,7 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import axios from 'axios';
 
@@ -13,12 +13,51 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '10mb' }));
 
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: 'spa',
+  const isProduction = process.env.NODE_ENV === 'production';
+  let vite: any = null;
+
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
+    vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+  }
+
+  // Explicit route handler for admin paths - guarantees index.html is always served
+  // with no 404 regardless of headers or browser/webview user agents
+  const adminRoutes = [
+    '/admin',
+    '/admin/*',
+    '/admin-dashboard',
+    '/admin-dashboard/*',
+    '/admin-portal',
+    '/admin-portal/*',
+    '/dashboard',
+    '/dashboard/*'
+  ];
+
+  app.get(adminRoutes, async (req, res, next) => {
+    try {
+      if (isProduction) {
+        return res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      } else {
+        const indexPath = path.resolve(__dirname, 'index.html');
+        let template = fs.readFileSync(indexPath, 'utf-8');
+        template = await vite.transformIndexHtml(req.originalUrl, template);
+        return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      }
+    } catch (e: any) {
+      if (vite) vite.ssrFixStacktrace(e);
+      next(e);
+    }
   });
 
-  app.use(vite.middlewares);
+  if (!isProduction) {
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.resolve(__dirname, 'dist')));
+  }
 
   // GitHub API Proxy
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -66,6 +105,28 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // SPA fallback for all routes including /admin, /admin-dashboard, etc.
+  // Guarantees no 404 on direct browser navigation or refresh
+  app.get('*', async (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+
+    try {
+      if (isProduction) {
+        return res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      } else {
+        const indexPath = path.resolve(__dirname, 'index.html');
+        let template = fs.readFileSync(indexPath, 'utf-8');
+        template = await vite.transformIndexHtml(req.originalUrl, template);
+        return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      }
+    } catch (e: any) {
+      if (vite) vite.ssrFixStacktrace(e);
+      next(e);
     }
   });
 

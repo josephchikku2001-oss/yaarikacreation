@@ -8,7 +8,7 @@ interface FooterProps {
   isAdminSetupComplete?: boolean;
 }
 
-export const Footer: React.FC<FooterProps> = () => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
   return (
     <footer className="bg-[#2B050B] text-[#F5EDE0] border-t-2 border-[#D4AF37]/60 pt-10 pb-8 px-6 sm:px-10">
       <div className="max-w-7xl mx-auto space-y-8">

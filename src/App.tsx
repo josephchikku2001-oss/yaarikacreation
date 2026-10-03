@@ -37,23 +37,35 @@ import {
 } from 'lucide-react';
 import { CONTACT_NUMBERS } from './utils/whatsapp';
 
-// Helper to verify if the URL points to secret admin dashboard
-const checkIsAdminUrl = (): boolean => {
+const VALID_CATEGORIES: CategoryType[] = [
+  'All',
+  'Traditional Sarees',
+  'Co-ord Sets',
+  'Churidar Sets',
+  'Fusion Wear',
+  'New Arrivals'
+];
+
+const sanitizeCategory = (cat: unknown): CategoryType => {
+  if (typeof cat === 'string' && (VALID_CATEGORIES as readonly string[]).includes(cat)) {
+    return cat as CategoryType;
+  }
+  return 'All';
+};
+
+// Helper to verify if the URL points to admin dashboard
+export const checkIsAdminUrl = (): boolean => {
   if (typeof window === 'undefined') return false;
-  const path = window.location.pathname.toLowerCase();
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
   const hash = window.location.hash.toLowerCase();
   const search = window.location.search.toLowerCase();
-  return (
-    path.includes('admin-dashboard') ||
-    path.endsWith('/admin') ||
-    path.includes('/admin/') ||
-    hash.includes('admin-dashboard') ||
-    hash.includes('#/admin') ||
-    hash.includes('#admin') ||
-    search.includes('admin-dashboard') ||
-    search.includes('admin=true') ||
-    search.includes('portal=admin')
-  );
+  
+  const adminPaths = ['/admin', '/admin-dashboard', '/admin-portal', '/dashboard'];
+  const isPathMatch = adminPaths.includes(path) || path.startsWith('/admin/') || path.startsWith('/admin-dashboard/');
+  const isHashMatch = hash.includes('admin') || hash.includes('dashboard');
+  const isSearchMatch = search.includes('admin=true') || search.includes('portal=admin') || search.includes('view=admin') || search.includes('admin-dashboard');
+
+  return isPathMatch || isHashMatch || isSearchMatch;
 };
 
 export default function App() {
@@ -69,7 +81,35 @@ export default function App() {
   const [isFirestoreConnected, setIsFirestoreConnected] = useState<boolean>(false);
   const [isSyncingFirestore, setIsSyncingFirestore] = useState<boolean>(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(false);
-  const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(true);
+  const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    if (checkIsAdminUrl()) return false;
+    try {
+      if (sessionStorage.getItem('yaarika_intro_seen') === 'true') {
+        return false;
+      }
+    } catch {}
+    return true;
+  });
+
+  // Navigation handlers
+  const navigateToAdmin = useCallback(() => {
+    setViewMode('admin');
+    setShowWelcomeIntro(false);
+    if (!checkIsAdminUrl()) {
+      window.history.pushState(null, '', '/admin-dashboard');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const navigateToCatalog = useCallback((category?: unknown) => {
+    setViewMode('catalog');
+    setActiveCategory(sanitizeCategory(category));
+    if (checkIsAdminUrl()) {
+      window.history.pushState(null, '', '/');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // New Filters & Sorting States
   const [selectedSort, setSelectedSort] = useState<SortOption>('featured');
@@ -77,13 +117,16 @@ export default function App() {
   const [selectedPriceRange, setSelectedPriceRange] = useState<PriceRangeOption>('all');
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
 
-  // Synchronize URL and listen for secret admin route / hash changes & hotkeys
+  // Synchronize URL and listen for admin route / hash changes & hotkeys
   useEffect(() => {
     const handleUrlChange = () => {
       if (checkIsAdminUrl()) {
         setViewMode('admin');
+        setShowWelcomeIntro(false);
       } else if (window.location.hash === '#wishlist') {
         setViewMode('wishlist');
+      } else {
+        setViewMode('catalog');
       }
     };
 
@@ -98,7 +141,8 @@ export default function App() {
           const next = prev === 'admin' ? 'catalog' : 'admin';
           if (next === 'admin') {
             window.history.pushState(null, '', '/admin-dashboard');
-            setToastMessage('🔒 Yaarika Admin Portal Opened (Protected by Password)');
+            setShowWelcomeIntro(false);
+            setToastMessage('🔒 Yaarika Admin Portal Opened');
           } else {
             window.history.pushState(null, '', '/');
           }
@@ -210,13 +254,13 @@ export default function App() {
       setProducts(filtered);
       ProductStorage.saveProducts(filtered);
       if (filtered.length > 0) {
-        setToastMessage(`✨ Successfully loaded ${filtered.length} live products dynamically from Firebase Firestore!`);
+        setToastMessage(`✨ Successfully refreshed catalog (${filtered.length} items)!`);
       } else {
-        setToastMessage('Catalog is currently empty (all default products removed).');
+        setToastMessage('Catalog is currently empty.');
       }
     } catch (err: any) {
-      console.error('Manual Firestore sync error:', err);
-      setToastMessage('Could not connect to Firestore. Displaying local catalog cache.');
+      console.error('Catalog refresh error:', err);
+      setToastMessage('Refreshed from catalog cache.');
     } finally {
       setIsSyncingFirestore(false);
     }
@@ -379,24 +423,40 @@ export default function App() {
       
       {/* 3D WELCOME INTRO OVERLAY */}
       {showWelcomeIntro && (
-        <Welcome3DIntro onEnterCatalog={() => setShowWelcomeIntro(false)} />
+        <Welcome3DIntro 
+          onEnterCatalog={() => {
+            setShowWelcomeIntro(false);
+            try {
+              sessionStorage.setItem('yaarika_intro_seen', 'true');
+            } catch {}
+          }} 
+        />
       )}
 
       {/* HEADER NAVBAR */}
       <Header
         activeCategory={activeCategory}
         onSelectCategory={(cat) => {
-          setActiveCategory(cat);
-          if (viewMode !== 'catalog') setViewMode('catalog');
+          const safeCat = sanitizeCategory(cat);
+          setActiveCategory(safeCat);
+          if (viewMode !== 'catalog') navigateToCatalog(safeCat);
         }}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         wishlistCount={wishlist.length}
         viewMode={viewMode}
         onSetViewMode={(mode) => {
-          setViewMode(mode);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          if (mode === 'admin') {
+            navigateToAdmin();
+          } else {
+            setViewMode(mode);
+            if (checkIsAdminUrl()) {
+              window.history.pushState(null, '', '/');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
         }}
+        onOpenAdmin={navigateToAdmin}
         isAdminSetupComplete={isAdminSetupComplete}
         totalResultsCount={filteredProducts.length}
       />
@@ -426,10 +486,10 @@ export default function App() {
             {viewMode === 'catalog' && !searchQuery && (
               <Hero 
                 onSelectCategory={(cat) => {
-                  setActiveCategory(cat);
+                  setActiveCategory(sanitizeCategory(cat));
                 }}
                 onShopClick={(cat) => {
-                  if (cat) setActiveCategory(cat);
+                  if (cat) setActiveCategory(sanitizeCategory(cat));
                   const el = document.getElementById('catalog-grid');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                 }} 
@@ -445,38 +505,17 @@ export default function App() {
               <h3 style={{ fontFamily: 'Georgia, serif' }} className="text-2xl italic font-bold text-[#1A1A1A]">
                 {viewMode === 'wishlist'
                   ? 'Wishlist Collection'
-                  : activeCategory === 'All'
+                  : !activeCategory || typeof activeCategory !== 'string' || activeCategory === 'All' || String(activeCategory).includes('[object')
                   ? 'Featured Ensembles'
                   : `${activeCategory} Collection`}
               </h3>
               <div className="h-[1px] flex-1 bg-[#D4AF37]/30 mx-4 sm:mx-8 mb-2"></div>
               
               <div className="flex items-center gap-2">
-                {isFirestoreConnected && (
-                  <div 
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold shadow-xs"
-                    title="Live Firestore Real-Time Catalog Connected"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                    <span className="hidden sm:inline">Live Firestore Sync</span>
-                    <span className="sm:hidden">Live</span>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleSyncFirestore}
-                  disabled={isSyncingFirestore}
-                  className="p-1.5 px-2.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:text-[#4A0E17] hover:border-[#D4AF37] text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
-                  title="Fetch latest product updates dynamically from Firestore"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingFirestore ? 'animate-spin text-[#4A0E17]' : 'text-gray-500'}`} />
-                  <span className="hidden sm:inline">{isSyncingFirestore ? 'Syncing...' : 'Sync Firestore'}</span>
-                </button>
-
                 {viewMode === 'catalog' && (
                   <button
                     onClick={() => setActiveCategory('All')}
-                    className="text-[10px] uppercase tracking-widest text-[#4A0E17] font-bold hover:text-[#D4AF37] transition-colors whitespace-nowrap pl-2 border-l border-gray-300"
+                    className="text-[10px] uppercase tracking-widest text-[#4A0E17] font-bold hover:text-[#D4AF37] transition-colors whitespace-nowrap px-3 py-1 bg-white border border-gray-200 rounded-lg hover:border-[#D4AF37]"
                   >
                     View All
                   </button>
@@ -695,14 +734,6 @@ export default function App() {
                       <MessageCircle className="w-4 h-4" />
                       <span>WhatsApp Custom Inquiry</span>
                     </a>
-
-                    <button
-                      onClick={() => setViewMode('admin')}
-                      className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#32080F] text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Admin: Add Products</span>
-                    </button>
                   </div>
                 </div>
               ) : (
@@ -783,22 +814,14 @@ export default function App() {
 
       {/* FOOTER */}
       <Footer
-        onOpenAdmin={() => {
-          setViewMode('admin');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onOpenAdmin={navigateToAdmin}
         isAdminSetupComplete={isAdminSetupComplete}
       />
 
       {/* ADMIN PORTAL OVERLAY */}
       {viewMode === 'admin' && (
         <AdminPortal
-          onClose={() => {
-            setViewMode('catalog');
-            if (checkIsAdminUrl()) {
-              window.history.pushState(null, '', '/');
-            }
-          }}
+          onClose={navigateToCatalog}
           onToast={showToast}
           onRefreshProducts={refreshProducts}
         />

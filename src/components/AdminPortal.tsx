@@ -51,6 +51,13 @@ import {
   getProductTotalStock 
 } from '../utils/inventory';
 import { compressImageFile } from '../utils/imageCompressor';
+import { 
+  isFirebaseConfigured, 
+  getSavedFirebaseConfig, 
+  saveFirebaseConfig, 
+  FirebaseConfig, 
+  FirebaseAuthService 
+} from '../services/firebase';
 
 interface AdminPortalProps {
   onClose: () => void;
@@ -66,11 +73,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [adminUserEmail, setAdminUserEmail] = useState<string>('');
-  const [authMode, setAuthMode] = useState<'firebase' | 'master'>('firebase');
+  const [authMode, setAuthMode] = useState<'firebase' | 'master'>(() => isFirebaseConfigured() ? 'firebase' : 'master');
   
   // Login form inputs
   const [emailInput, setEmailInput] = useState<string>('');
-  const [usernameInput, setUsernameInput] = useState<string>('');
+  const [usernameInput, setUsernameInput] = useState<string>('admin');
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
@@ -933,6 +940,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {/* MASTER USERNAME & PASSWORD FORM */}
               {authMode === 'master' && (
                 <form onSubmit={handleMasterLogin} className="space-y-4">
+                  {!AdminStorage.isSetupComplete() && (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-bold">Initial Admin Setup:</strong>
+                        <span>Create your master admin username and password (min 4 characters) to secure your boutique dashboard.</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                       Admin Username
@@ -943,7 +960,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         required
                         value={usernameInput}
                         onChange={(e) => setUsernameInput(e.target.value)}
-                        placeholder="admin_yaarika"
+                        placeholder="admin"
                         className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4A0E17]"
                       />
                       <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
@@ -960,7 +977,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         required
                         value={passwordInput}
                         onChange={(e) => setPasswordInput(e.target.value)}
-                        placeholder="Enter password"
+                        placeholder="Enter password (min 4 chars)"
                         className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4A0E17]"
                       />
                       <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
@@ -989,10 +1006,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <button
                     type="submit"
                     disabled={authLoading}
-                    className="w-full py-3 rounded-xl gold-gradient-btn font-bold text-sm uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                    className="w-full py-3 rounded-xl gold-gradient-btn font-bold text-sm uppercase tracking-wider shadow-md hover:shadow-lg transition-all cursor-pointer"
                   >
-                    {authLoading ? 'Verifying...' : 'Login with Master Credentials'}
+                    {authLoading 
+                      ? 'Verifying...' 
+                      : (!AdminStorage.isSetupComplete() ? 'Create Master Admin Account' : 'Login to Admin Dashboard')}
                   </button>
+
+                  {AdminStorage.isSetupComplete() && (
+                    <div className="text-center pt-1 text-[11px] text-gray-500">
+                      Default username is <strong className="text-[#4A0E17]">admin</strong>. Password can be updated in Settings tab.
+                    </div>
+                  )}
                 </form>
               )}
 

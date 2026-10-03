@@ -17,7 +17,7 @@ import {
   Images
 } from 'lucide-react';
 import { Product, SizeType } from '../types';
-import { createWhatsAppOrderLink, CONTACT_NUMBERS } from '../utils/whatsapp';
+import { createWhatsAppOrderLink, openWhatsAppLink, CONTACT_NUMBERS } from '../utils/whatsapp';
 import { InquiryStorage } from '../services/storage';
 import { isProductInStock, getSizeStockCount, isSizeInStock, getProductTotalStock } from '../utils/inventory';
 
@@ -94,7 +94,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       phoneNumber
     );
 
-    window.open(url, '_blank', 'noopener,noreferrer');
+    openWhatsAppLink(url);
     onToast(`Opening WhatsApp order with ${contactLabel}`);
   };
 

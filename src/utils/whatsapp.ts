@@ -25,3 +25,17 @@ export function createGeneralWhatsAppLink(phoneNumber: string = '919995592722'):
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
   return `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
 }
+
+export function openWhatsAppLink(url: string): void {
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch {
+    window.location.href = url;
+  }
+}

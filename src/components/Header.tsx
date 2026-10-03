@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Heart, Phone, Sparkles, Menu, X, ArrowRight, Lock } from 'lucide-react';
+import { Search, Heart, Phone, Sparkles, Menu, X, ArrowRight } from 'lucide-react';
 import { CategoryType, ViewMode } from '../types';
 import { CONTACT_NUMBERS } from '../utils/whatsapp';
 import yaarikaLogo from '../assets/images/regenerated_image_1787041748700.png';
@@ -14,6 +14,7 @@ interface HeaderProps {
   onSetViewMode: (mode: ViewMode) => void;
   isAdminSetupComplete: boolean;
   totalResultsCount?: number;
+  onOpenAdmin?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSetViewMode,
   isAdminSetupComplete,
   totalResultsCount,
+  onOpenAdmin,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoTapCount, setLogoTapCount] = useState(0);
@@ -38,8 +40,12 @@ export const Header: React.FC<HeaderProps> = ({
       setLogoTapCount(nextCount);
       if (nextCount >= 5) {
         setLogoTapCount(0);
-        window.history.pushState(null, '', '/admin-dashboard');
-        onSetViewMode('admin');
+        if (onOpenAdmin) {
+          onOpenAdmin();
+        } else {
+          window.history.pushState(null, '', '/admin-dashboard');
+          onSetViewMode('admin');
+        }
         return;
       }
     } else {
@@ -331,17 +337,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Phone className="w-4 h-4" /> Direct WhatsApp Order Desk
             </a>
-
-            <button
-              onClick={() => {
-                onSetViewMode('admin');
-                setMobileMenuOpen(false);
-              }}
-              className="w-full py-2 px-3 bg-black/40 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-[#2B050B] border border-[#D4AF37]/40 text-[11px] font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Admin Management Portal</span>
-            </button>
           </div>
         </div>
       )}
