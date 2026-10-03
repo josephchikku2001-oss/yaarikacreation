@@ -1,6 +1,6 @@
 import { Product, AdminCredentials, InquiryLog } from '../types';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
-import { FirestoreProductService, isFirebaseConfigured } from './firebase';
+import { GitHubStorageService } from './githubStorage';
 
 const KEYS = {
   ADMIN: 'yaarika_admin_credentials_v1',
@@ -457,9 +457,9 @@ export const ProductStorage = {
     const merged = Array.from(map.values());
     this.saveProducts(merged);
 
-    // Sync any missing local custom products up to Firestore in the background (batched)
-    if (isFirebaseConfigured() && customItems.length > 0) {
-      FirestoreProductService.syncAllToFirestore(customItems).catch(() => {});
+    // Sync any missing local custom products up to GitHub in the background (batched)
+    if (customItems.length > 0) {
+      GitHubStorageService.updateProducts(merged, 'Sync local custom products to GitHub').catch(() => {});
     }
 
     return merged;
@@ -508,12 +508,10 @@ export const ProductStorage = {
     const updated = [createdProduct, ...currentProducts.filter(p => p.id !== createdProduct.id)];
     this.saveProducts(updated);
 
-    // Sync to Firestore if configured
-    if (isFirebaseConfigured()) {
-      FirestoreProductService.saveProduct(createdProduct).catch(err => {
-        console.warn('Background Firestore save note (quota or offline):', err?.message || err);
-      });
-    }
+    // Sync to GitHub if configured
+    GitHubStorageService.saveProduct(createdProduct).catch(err => {
+        console.warn('Background GitHub save note:', err?.message || err);
+    });
 
     return createdProduct;
   },
@@ -562,12 +560,10 @@ export const ProductStorage = {
     const updated = [...createdList, ...currentProducts.filter(p => !createdList.some(c => c.id === p.id))];
     this.saveProducts(updated);
 
-    // Sync to Firestore if configured (batched via syncAllToFirestore)
-    if (isFirebaseConfigured()) {
-      FirestoreProductService.syncAllToFirestore(createdList).catch(err => {
-        console.warn('Background Firestore bulk sync note:', err?.message || err);
-      });
-    }
+    // Sync to GitHub if configured
+    GitHubStorageService.updateProducts(updated, 'Bulk added products').catch(err => {
+        console.warn('Background GitHub bulk sync note:', err?.message || err);
+    });
 
     return {
       added: createdList.length,
@@ -593,12 +589,10 @@ export const ProductStorage = {
 
     this.saveProducts(updated);
 
-    // Sync to Firestore if configured
-    if (isFirebaseConfigured()) {
-      FirestoreProductService.saveProduct(updatedProduct).catch(err => {
-        console.warn('Background Firestore update warning:', err);
-      });
-    }
+    // Sync to GitHub if configured
+    GitHubStorageService.saveProduct(updatedProduct).catch(err => {
+        console.warn('Background GitHub update warning:', err);
+    });
   },
 
   toggleStockStatus(id: string): Product[] {
@@ -632,12 +626,10 @@ export const ProductStorage = {
 
     this.saveProducts(updated);
 
-    // Sync deletion to Firestore if configured
-    if (isFirebaseConfigured()) {
-      FirestoreProductService.deleteProduct(id).catch(err => {
-        console.warn('Background Firestore delete warning:', err);
-      });
-    }
+    // Sync deletion to GitHub if configured
+    GitHubStorageService.deleteProduct(id).catch(err => {
+        console.warn('Background GitHub delete warning:', err);
+    });
   },
 
   isDeleted(id: string): boolean {

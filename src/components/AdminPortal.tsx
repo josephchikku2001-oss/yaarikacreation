@@ -43,14 +43,7 @@ import { ExcelProductUploader } from './ExcelProductUploader';
 import { MultiLayerProductCreator } from './MultiLayerProductCreator';
 import { BannerSliderManager } from './BannerSliderManager';
 import { SAMPLE_SHOWCASE_PRODUCTS } from '../data/sampleShowcase';
-import { 
-  FirebaseAuthService, 
-  FirestoreProductService, 
-  isFirebaseConfigured, 
-  getSavedFirebaseConfig, 
-  saveFirebaseConfig, 
-  FirebaseConfig 
-} from '../services/firebase';
+import { GitHubStorageService } from '../services/githubStorage';
 import { 
   isProductInStock, 
   getSizeStockCount, 
@@ -275,39 +268,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     onToast('Logged out from Admin Portal.');
   };
 
-  // Sync All Products to Firestore
-  const handleSyncAllToFirestore = async () => {
+  // Sync All Products to GitHub
+  const handleSyncAllToGitHub = async () => {
     setIsSyncingFirestore(true);
     setFirestoreStatusMessage('');
     try {
       const current = ProductStorage.getProducts();
-      const count = await FirestoreProductService.syncAllToFirestore(current);
-      setFirestoreStatusMessage(`✅ Successfully saved ${count} products to Firebase Firestore!`);
-      onToast(`Saved ${count} products to Firebase Firestore Database!`);
+      await GitHubStorageService.updateProducts(current, 'Bulk sync products to GitHub');
+      setFirestoreStatusMessage(`✅ Successfully saved ${current.length} products to GitHub!`);
+      onToast(`Saved ${current.length} products to GitHub!`);
     } catch (err: any) {
       console.error(err);
-      setFirestoreStatusMessage(`❌ Firestore Sync Error: ${err.message || 'Check Firebase Configuration'}`);
-      onToast('Firestore sync failed. Please check Firebase credentials.');
+      setFirestoreStatusMessage(`❌ GitHub Sync Error: ${err.message || 'Check GitHub Configuration'}`);
+      onToast('GitHub sync failed. Please check configuration.');
     } finally {
       setIsSyncingFirestore(false);
     }
   };
 
-  // Fetch Latest from Firestore
-  const handleFetchFromFirestore = async () => {
+  // Fetch Latest from GitHub
+  const handleFetchFromGitHub = async () => {
     setIsSyncingFirestore(true);
     try {
-      const remoteProducts = await FirestoreProductService.fetchProducts();
+      const remoteProducts = await GitHubStorageService.fetchProducts();
       if (remoteProducts.length > 0) {
         ProductStorage.saveProducts(remoteProducts);
         setProducts(remoteProducts);
         onRefreshProducts();
-        onToast(`Loaded ${remoteProducts.length} products from Firebase Firestore!`);
+        onToast(`Loaded ${remoteProducts.length} products from GitHub!`);
       } else {
-        onToast('No products found in Firestore collection.');
+        onToast('No products found in GitHub.');
       }
     } catch (err: any) {
-      onToast(`Error fetching from Firestore: ${err.message || 'Check configuration'}`);
+      onToast(`Error fetching from GitHub: ${err.message || 'Check configuration'}`);
     } finally {
       setIsSyncingFirestore(false);
     }
@@ -1014,44 +1007,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="bg-gradient-to-r from-[#4A0E17]/15 via-amber-500/10 to-[#4A0E17]/15 border border-[#D4AF37]/40 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
                 <div className="flex items-center gap-3 w-full md:w-auto">
                   <div className="w-10 h-10 rounded-xl bg-[#4A0E17] text-[#D4AF37] flex items-center justify-center shrink-0 shadow-md">
-                    <Flame className="w-5 h-5 text-amber-400" />
+                    <Cloud className="w-5 h-5 text-amber-400" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-extrabold text-[#4A0E17]">Firebase Firestore:</span>
+                      <span className="text-xs font-extrabold text-[#4A0E17]">GitHub Storage:</span>
                       <span className="text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Cloud Sync Enabled
+                        Connected
                       </span>
                       <span className="text-xs text-gray-600 font-medium">
                         ({products.length.toLocaleString()} Products in Catalog)
                       </span>
                     </div>
                     <p className="text-[11px] text-gray-500 mt-0.5">
-                      Changes are automatically saved to Firebase Firestore &amp; preserved across all updates.
+                      Changes are automatically saved to products.json in GitHub.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
                   <button
-                    onClick={handleFetchFromFirestore}
+                    onClick={handleFetchFromGitHub}
                     disabled={isSyncingFirestore}
                     className="px-3 py-1.5 rounded-xl bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
-                    title="Pull latest product catalog from Firebase Firestore"
+                    title="Pull latest product catalog from GitHub"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isSyncingFirestore ? 'animate-spin' : ''}`} />
-                    <span>Fetch from Firestore</span>
+                    <span>Fetch from GitHub</span>
                   </button>
 
                   <button
-                    onClick={handleSyncAllToFirestore}
+                    onClick={handleSyncAllToGitHub}
                     disabled={isSyncingFirestore}
                     className="px-4 py-1.5 rounded-xl bg-[#4A0E17] text-[#D4AF37] hover:bg-[#32080F] border border-[#D4AF37] text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
-                    title="Upload entire catalog to Firebase Firestore database"
+                    title="Upload entire catalog to GitHub"
                   >
-                    <Flame className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{isSyncingFirestore ? 'Syncing...' : 'Save All to Firestore'}</span>
+                    <Cloud className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isSyncingFirestore ? 'Syncing...' : 'Save All to GitHub'}</span>
                   </button>
                 </div>
               </div>
