@@ -10,6 +10,7 @@ import { Toast } from './components/Toast';
 import { CategoryType, Product, ViewMode, SortOption, PriceRangeOption, SizeType } from './types';
 import { CatalogFilterBar } from './components/CatalogFilterBar';
 import { ProductStorage, WishlistStorage, AdminStorage, PRODUCTS_UPDATED_EVENT } from './services/storage';
+import { GitHubStorageService } from './services/githubStorage';
 import { 
   FirestoreProductService, 
   isFirebaseConfigured, 
@@ -204,11 +205,19 @@ export default function App() {
       );
     } else {
       setIsLoadingCatalog(false);
-      // If Firebase is not yet configured, load from local IndexedDB storage
+      // If Firebase is not yet configured, load from local IndexedDB storage and fetch from GitHub repository
       ProductStorage.loadProductsAsync().then((allProducts) => {
         const filtered = (allProducts || []).filter(p => !ProductStorage.isDeleted(p.id));
         setProducts(filtered);
       });
+
+      GitHubStorageService.fetchProducts().then((remoteProducts) => {
+        if (remoteProducts && Array.isArray(remoteProducts) && remoteProducts.length > 0) {
+          const merged = ProductStorage.mergeWithCloudProducts(remoteProducts);
+          const filtered = merged.filter(p => !ProductStorage.isDeleted(p.id));
+          setProducts(filtered);
+        }
+      }).catch(() => {});
     }
 
     // 3. Listen to instant broadcast events when admin adds/edits/deletes products locally
@@ -223,14 +232,22 @@ export default function App() {
 
     window.addEventListener(PRODUCTS_UPDATED_EVENT, handleProductsUpdated);
 
-    // Periodic auto-sync to ensure any new products appear immediately for all users
+    // Periodic auto-sync with GitHub JSON repository to ensure any new products appear immediately for all users across sessions & refreshes
     const pollInterval = setInterval(() => {
-      ProductStorage.loadProductsAsync().then((items) => {
-        if (items && Array.isArray(items)) {
-          const filtered = items.filter(p => !ProductStorage.isDeleted(p.id));
+      GitHubStorageService.fetchProducts().then((remoteProducts) => {
+        if (remoteProducts && Array.isArray(remoteProducts) && remoteProducts.length > 0) {
+          const merged = ProductStorage.mergeWithCloudProducts(remoteProducts);
+          const filtered = merged.filter(p => !ProductStorage.isDeleted(p.id));
           setProducts(filtered);
         }
-      }).catch(() => {});
+      }).catch(() => {
+        ProductStorage.loadProductsAsync().then((items) => {
+          if (items && Array.isArray(items)) {
+            const filtered = items.filter(p => !ProductStorage.isDeleted(p.id));
+            setProducts(filtered);
+          }
+        }).catch(() => {});
+      });
     }, 15000);
 
     return () => {
