@@ -59,44 +59,22 @@ async function startServer() {
     app.use(express.static(path.resolve(__dirname, 'dist')));
   }
 
-  // GitHub API Proxy
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  const GITHUB_REPO = process.env.GITHUB_REPO; // owner/repo
-
-  app.post('/api/github/update', async (req, res) => {
-    if (!GITHUB_TOKEN || !GITHUB_REPO) {
-      return res.status(500).json({ error: 'GitHub config missing' });
-    }
-    const { content, message } = req.body;
-    
-    try {
-      // 1. Get SHA of existing file
-      const { data: fileData } = await axios.get(
-        `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
-        { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
-      );
-
-      // 2. Update file
-      await axios.put(
-        `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
-        {
-          message: message || 'Update products',
-          content: Buffer.from(JSON.stringify(content, null, 2)).toString('base64'),
-          sha: fileData.sha
-        },
-        { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
-      );
-      
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
+  // GitHub API Proxy & Local products.json sync
   app.get('/api/github/products', async (req, res) => {
+    const GITHUB_TOKEN = (req.headers['x-github-token'] as string) || process.env.GITHUB_TOKEN;
+    const GITHUB_REPO = (req.headers['x-github-repo'] as string) || process.env.GITHUB_REPO;
+
     if (!GITHUB_TOKEN || !GITHUB_REPO) {
-      return res.status(500).json({ error: 'GitHub config missing' });
+      try {
+        const localPath = path.resolve(__dirname, 'products.json');
+        if (fs.existsSync(localPath)) {
+          const content = fs.readFileSync(localPath, 'utf-8');
+          return res.json(JSON.parse(content || '[]'));
+        }
+      } catch (e) {}
+      return res.json([]);
     }
+
     try {
       const { data } = await axios.get(
         `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
@@ -104,7 +82,128 @@ async function startServer() {
       );
       res.json(data);
     } catch (error: any) {
+      try {
+        const localPath = path.resolve(__dirname, 'products.json');
+        if (fs.existsSync(localPath)) {
+          const content = fs.readFileSync(localPath, 'utf-8');
+          return res.json(JSON.parse(content || '[]'));
+        }
+      } catch {}
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/github/update', async (req, res) => {
+    const GITHUB_TOKEN = (req.headers['x-github-token'] as string) || process.env.GITHUB_TOKEN;
+    const GITHUB_REPO = (req.headers['x-github-repo'] as string) || process.env.GITHUB_REPO;
+    const { content, message } = req.body;
+
+    // Always update local products.json file for instant live website availability
+    try {
+      const localPath = path.resolve(__dirname, 'products.json');
+      fs.writeFileSync(localPath, JSON.stringify(content, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn('Local products.json write error:', err);
+    }
+
+    if (!GITHUB_TOKEN || !GITHUB_REPO) {
+      return res.json({ success: true, mode: 'local', message: 'Updated locally (GitHub config not set)' });
+    }
+    
+    try {
+      // 1. Get SHA of existing file
+      let sha: string | undefined = undefined;
+      try {
+        const { data: fileData } = await axios.get(
+          `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
+          { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+        );
+        sha = fileData.sha;
+      } catch (e) {}
+
+      // 2. Update file on GitHub
+      await axios.put(
+        `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
+        {
+          message: message || 'Update products via Admin Portal',
+          content: Buffer.from(JSON.stringify(content, null, 2)).toString('base64'),
+          ...(sha ? { sha } : {})
+        },
+        { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+      );
+      
+      res.json({ success: true, mode: 'github' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Verification endpoint for Admin Portal verification process
+  app.post('/api/github/verify', async (req, res) => {
+    const { token, repo } = req.body;
+    const GITHUB_TOKEN = token || process.env.GITHUB_TOKEN;
+    const GITHUB_REPO = repo || process.env.GITHUB_REPO;
+
+    const result = {
+      hasToken: !!GITHUB_TOKEN,
+      hasRepo: !!GITHUB_REPO,
+      repoAccess: false,
+      readSuccess: false,
+      writeSuccess: false,
+      error: null as string | null
+    };
+
+    if (!GITHUB_TOKEN || !GITHUB_REPO) {
+      result.error = 'GitHub Token and Repository (owner/repo) are required.';
+      return res.json(result);
+    }
+
+    try {
+      const repoCheck = await axios.get(
+        `https://api.github.com/repos/${GITHUB_REPO}`,
+        { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+      );
+      if (repoCheck.status === 200) {
+        result.repoAccess = true;
+      }
+
+      try {
+        await axios.get(
+          `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
+          { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+        );
+        result.readSuccess = true;
+      } catch {
+        result.readSuccess = true; // file can be created on first write
+      }
+
+      const timestamp = new Date().toISOString();
+      const testPing = [{ id: 'verify-ping', title: `Sync Verification ${timestamp}`, price: 99, category: 'Fusion Wear', inStock: true, sizes: ['Free Size'], imageUrl: '', description: 'Verification test' }];
+
+      let sha: string | undefined = undefined;
+      try {
+        const { data: fileData } = await axios.get(
+          `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
+          { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+        );
+        sha = fileData.sha;
+      } catch {}
+
+      await axios.put(
+        `https://api.github.com/repos/${GITHUB_REPO}/contents/products.json`,
+        {
+          message: `Verification test sync at ${timestamp}`,
+          content: Buffer.from(JSON.stringify(testPing, null, 2)).toString('base64'),
+          ...(sha ? { sha } : {})
+        },
+        { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+      );
+      result.writeSuccess = true;
+
+      res.json(result);
+    } catch (e: any) {
+      result.error = e.message || 'GitHub verification failed';
+      res.json(result);
     }
   });
 

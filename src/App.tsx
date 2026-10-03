@@ -222,8 +222,20 @@ export default function App() {
     };
 
     window.addEventListener(PRODUCTS_UPDATED_EVENT, handleProductsUpdated);
+
+    // Periodic auto-sync to ensure any new products appear immediately for all users
+    const pollInterval = setInterval(() => {
+      ProductStorage.loadProductsAsync().then((items) => {
+        if (items && Array.isArray(items)) {
+          const filtered = items.filter(p => !ProductStorage.isDeleted(p.id));
+          setProducts(filtered);
+        }
+      }).catch(() => {});
+    }, 15000);
+
     return () => {
       window.removeEventListener(PRODUCTS_UPDATED_EVENT, handleProductsUpdated);
+      clearInterval(pollInterval);
       if (unsubscribeFirestore) {
         unsubscribeFirestore();
       }

@@ -85,7 +85,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [isFirebaseAccountCreation, setIsFirebaseAccountCreation] = useState<boolean>(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'excel' | 'bulk' | 'banners' | 'inquiries' | 'settings'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'add' | 'excel' | 'bulk' | 'banners' | 'inquiries' | 'github-verify' | 'settings'>('products');
+
+  // GitHub Sync & Verification Tab State
+  const [ghTokenInput, setGhTokenInput] = useState<string>(() => GitHubStorageService.getConfig().token || '');
+  const [ghRepoInput, setGhRepoInput] = useState<string>(() => GitHubStorageService.getConfig().repo || '');
+  const [ghVerifyResult, setGhVerifyResult] = useState<any>(null);
+  const [isVerifyingGh, setIsVerifyingGh] = useState<boolean>(false);
+
+  const handleSaveGhConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    GitHubStorageService.saveConfig(ghTokenInput, ghRepoInput);
+    onToast('GitHub Configuration Saved successfully!');
+  };
+
+  const handleRunGhVerification = async () => {
+    setIsVerifyingGh(true);
+    setGhVerifyResult(null);
+    try {
+      const res = await GitHubStorageService.verifyConnection(ghTokenInput, ghRepoInput);
+      setGhVerifyResult(res);
+      if (res.writeSuccess && res.repoAccess) {
+        onToast('✅ GitHub & Live Website sync verification passed successfully!');
+      } else {
+        onToast('⚠️ Verification completed with warnings/errors. Check details.');
+      }
+    } catch (e: any) {
+      setGhVerifyResult({ success: false, error: e.message || 'Verification failed' });
+      onToast('Verification failed.');
+    } finally {
+      setIsVerifyingGh(false);
+    }
+  };
 
   // Product List
   const [products, setProducts] = useState<Product[]>(ProductStorage.getProducts());
@@ -1158,6 +1189,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('github-verify')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'github-verify'
+                      ? 'bg-[#4A0E17] text-[#D4AF37] border border-[#D4AF37] shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-amber-50 border border-amber-300'
+                  }`}
+                >
+                  <Cloud className="w-4 h-4 text-blue-600" />
+                  <span>GitHub &amp; Sync Verification</span>
+                  <span className="text-[9px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded font-extrabold uppercase">
+                    Live Check
+                  </span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('settings')}
                   className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                     activeTab === 'settings'
@@ -1897,6 +1943,222 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         Update Master Password
                       </button>
                     </form>
+                  </div>
+
+                </div>
+              )}
+
+              {/* TAB: GITHUB & LIVE SYNC VERIFICATION */}
+              {activeTab === 'github-verify' && (
+                <div className="space-y-6 animate-fade-in">
+                  
+                  {/* Overview Card */}
+                  <div className="bg-gradient-to-r from-[#4A0E17] to-[#2B050B] text-[#FAF6F0] p-6 rounded-2xl shadow-xl border border-[#D4AF37]/50 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl gold-gradient-bg p-0.5 shadow-md flex items-center justify-center">
+                        <div className="w-full h-full bg-[#4A0E17] rounded-[10px] flex items-center justify-center">
+                          <Cloud className="w-6 h-6 text-[#D4AF37]" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-cinzel text-lg sm:text-xl font-bold gold-gradient-text">
+                          GitHub &amp; Live Website Synchronization System
+                        </h3>
+                        <p className="text-xs text-[#F3E5AB]/90">
+                          Configure your GitHub credentials and run the verification process to ensure products added in the Admin Portal automatically update on the front end via GitHub in real-time.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Configuration Form */}
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                    <h4 className="font-cinzel text-base font-bold text-[#4A0E17] flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-amber-600" />
+                      <span>GitHub Repository &amp; Token Settings</span>
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Provide your GitHub personal access token and repository name (e.g. <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">owner/repo</code>) to enable automated commits to <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">products.json</code>.
+                    </p>
+
+                    <form onSubmit={handleSaveGhConfig} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                          GitHub Repository (<code className="lowercase font-normal">owner/repo</code>)
+                        </label>
+                        <input
+                          type="text"
+                          value={ghRepoInput}
+                          onChange={(e) => setGhRepoInput(e.target.value)}
+                          placeholder="e.g. yaarika/yaarika-boutique"
+                          className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#4A0E17] focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                          GitHub Personal Access Token (PAT)
+                        </label>
+                        <input
+                          type="password"
+                          value={ghTokenInput}
+                          onChange={(e) => setGhTokenInput(e.target.value)}
+                          placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                          className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#4A0E17] focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 rounded-xl gold-gradient-btn text-xs font-bold uppercase tracking-wider shadow-md"
+                        >
+                          Save GitHub Credentials
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleRunGhVerification}
+                          disabled={isVerifyingGh}
+                          className="px-6 py-2.5 rounded-xl bg-[#4A0E17] text-[#D4AF37] hover:bg-[#32080F] border border-[#D4AF37] text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 transition-all"
+                        >
+                          <RefreshCw className={`w-4 h-4 text-amber-400 ${isVerifyingGh ? 'animate-spin' : ''}`} />
+                          <span>{isVerifyingGh ? 'Running Verification...' : 'Run Full System Verification'}</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Verification Results Dashboard */}
+                  {ghVerifyResult && (
+                    <div className={`p-6 rounded-2xl border shadow-md space-y-4 animate-fade-in ${
+                      ghVerifyResult.writeSuccess && ghVerifyResult.repoAccess
+                        ? 'bg-emerald-50/60 border-emerald-300'
+                        : 'bg-amber-50/60 border-amber-300'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-cinzel text-base font-bold text-gray-900 flex items-center gap-2">
+                          {ghVerifyResult.writeSuccess && ghVerifyResult.repoAccess ? (
+                            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                          ) : (
+                            <AlertTriangle className="w-6 h-6 text-amber-600" />
+                          )}
+                          <span>Sync &amp; Connection Verification Results</span>
+                        </h4>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                          ghVerifyResult.writeSuccess && ghVerifyResult.repoAccess
+                            ? 'bg-emerald-200 text-emerald-900'
+                            : 'bg-amber-200 text-amber-900'
+                        }`}>
+                          {ghVerifyResult.writeSuccess && ghVerifyResult.repoAccess ? 'All Checks Passed ✅' : 'Warning / Needs Attention'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">1. GitHub Token &amp; Repo</span>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                            {ghVerifyResult.hasToken && ghVerifyResult.hasRepo ? (
+                              <>
+                                <Check className="w-4 h-4 text-emerald-600" />
+                                <span>Configured &amp; Present</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                <span>Missing Token or Repo</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">2. Repository Access</span>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                            {ghVerifyResult.repoAccess ? (
+                              <>
+                                <Check className="w-4 h-4 text-emerald-600" />
+                                <span className="text-emerald-700">Read &amp; Write Access Verified</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                                <span className="text-rose-700">Access Denied / Invalid Token</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">3. Live Sync (<code className="lowercase">products.json</code>)</span>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                            {ghVerifyResult.writeSuccess ? (
+                              <>
+                                <Check className="w-4 h-4 text-emerald-600" />
+                                <span className="text-emerald-700">Test Commit Successful</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                                <span className="text-rose-700">Commit Failed</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {ghVerifyResult.error && (
+                        <div className="p-3 bg-rose-100 text-rose-900 border border-rose-300 rounded-xl text-xs font-medium">
+                          <strong>Error Details:</strong> {ghVerifyResult.error}
+                        </div>
+                      )}
+
+                      <div className="text-xs text-gray-600 bg-white p-3.5 rounded-xl border border-gray-200 space-y-1">
+                        <strong className="text-gray-900 block font-bold">✨ How Automatic Synchronization Works:</strong>
+                        <ul className="list-disc pl-4 space-y-1 text-[11px] text-gray-600">
+                          <li>Products added or edited in the Admin Portal are instantly saved in local storage &amp; IndexedDB.</li>
+                          <li>Simultaneously, a background request pushes the updated product array to <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">products.json</code> via GitHub API.</li>
+                          <li>Front-end users receive live updates automatically, ensuring all new products appear immediately for all visitors.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick Test Action */}
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <h4 className="font-cinzel text-sm font-bold text-[#4A0E17]">
+                        Test Live Product Broadcast
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        Add a sample test verification product to immediately test the full pipeline (Admin Portal -&gt; GitHub -&gt; Live Website).
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const testProd = ProductStorage.addProduct({
+                          title: `Verification Test Piece ${new Date().toLocaleTimeString()}`,
+                          category: 'New Arrivals',
+                          price: 1999,
+                          originalPrice: 2799,
+                          inStock: true,
+                          isNewArrival: true,
+                          sizes: ['M', 'L', 'XL', 'XXL'],
+                          sizeStock: { M: 5, L: 5, XL: 5, XXL: 5 },
+                          description: 'Automated verification test product created via Admin Portal.',
+                          imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800'
+                        });
+                        const fresh = ProductStorage.getProducts();
+                        setProducts(fresh);
+                        onRefreshProducts();
+                        onToast(`Successfully created verification test product "${testProd.title}"!`);
+                      }}
+                      className="px-5 py-2.5 rounded-xl gold-gradient-btn text-xs font-bold uppercase tracking-wider shadow-md whitespace-nowrap"
+                    >
+                      + Add Test Live Product
+                    </button>
                   </div>
 
                 </div>
