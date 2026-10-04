@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { Product } from '../types';
 
 export const GitHubStorageService = {
@@ -19,37 +18,43 @@ export const GitHubStorageService = {
 
   getHeaders() {
     const { token, repo } = this.getConfig();
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['x-github-token'] = token;
     if (repo) headers['x-github-repo'] = repo;
     return headers;
   },
 
   async fetchProducts(): Promise<Product[]> {
-    // 1. Try static public products.json
+    // 1. Try static public products.json using native fetch
     try {
-      const res = await axios.get('/products.json', { validateStatus: () => true });
-      if (res.status === 200 && res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data;
+      const res = await fetch('/products.json');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
       }
     } catch {}
 
-    // 2. Try backend API proxy
+    // 2. Try backend API proxy using native fetch
     try {
-      const res = await axios.get('/api/github/products', { headers: this.getHeaders(), validateStatus: () => true });
-      if (res.status === 200 && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data;
+      const res = await fetch('/api/github/products', { headers: this.getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
       }
     } catch {}
 
-    // 3. Try direct GitHub raw URL fallback
+    // 3. Try direct GitHub raw URL fallback using native fetch
     try {
       const { repo } = this.getConfig();
       if (repo) {
-        const rawUrl = `https://raw.githubusercontent.com/${repo}/main/products.json`;
-        const res = await axios.get(rawUrl, { validateStatus: () => true });
-        if (res.status === 200 && res.data && Array.isArray(res.data)) {
-          return res.data;
+        const rawRes = await fetch(`https://raw.githubusercontent.com/${repo}/main/products.json`);
+        if (rawRes.ok) {
+          const data = await rawRes.json();
+          if (Array.isArray(data)) return data;
         }
       }
     } catch {}
@@ -57,10 +62,10 @@ export const GitHubStorageService = {
     try {
       const { repo } = this.getConfig();
       if (repo) {
-        const rawUrlMaster = `https://raw.githubusercontent.com/${repo}/master/products.json`;
-        const res = await axios.get(rawUrlMaster, { validateStatus: () => true });
-        if (res.status === 200 && res.data && Array.isArray(res.data)) {
-          return res.data;
+        const rawRes = await fetch(`https://raw.githubusercontent.com/${repo}/master/products.json`);
+        if (rawRes.ok) {
+          const data = await rawRes.json();
+          if (Array.isArray(data)) return data;
         }
       }
     } catch {}
@@ -69,35 +74,49 @@ export const GitHubStorageService = {
   },
 
   async updateProducts(products: Product[], message: string): Promise<void> {
-    // 1. Try backend API proxy
+    // 1. Try backend API proxy using native fetch
     try {
-      await axios.post('/api/github/update', { content: products, message }, { headers: this.getHeaders() });
-      return;
-    } catch (e) {
-      // 2. Fallback to direct client-side GitHub API call (for static hosts like Vercel)
-      const { token, repo } = this.getConfig();
-      if (!token || !repo) {
-        throw new Error('GitHub token and repo not configured for direct update.');
-      }
+      const res = await fetch('/api/github/update', {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ content: products, message })
+      });
+      if (res.ok) return;
+    } catch {}
 
-      let sha: string | undefined = undefined;
-      try {
-        const { data: fileData } = await axios.get(
-          `https://api.github.com/repos/${repo}/contents/products.json`,
-          { headers: { Authorization: `token ${token}` } }
-        );
+    // 2. Fallback to direct client-side GitHub API call (for static hosts like Vercel)
+    const { token, repo } = this.getConfig();
+    if (!token || !repo) {
+      throw new Error('GitHub token and repo not configured for direct update.');
+    }
+
+    let sha: string | undefined = undefined;
+    try {
+      const fileRes = await fetch(`https://api.github.com/repos/${repo}/contents/products.json`, {
+        headers: { Authorization: `token ${token}` }
+      });
+      if (fileRes.ok) {
+        const fileData = await fileRes.json();
         sha = fileData.sha;
-      } catch {}
+      }
+    } catch {}
 
-      await axios.put(
-        `https://api.github.com/repos/${repo}/contents/products.json`,
-        {
-          message: message || 'Update products via Admin Portal',
-          content: b58Encode(JSON.stringify(products, null, 2)),
-          ...(sha ? { sha } : {})
-        },
-        { headers: { Authorization: `token ${token}` } }
-      );
+    const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/products.json`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: message || 'Update products via Admin Portal',
+        content: b58Encode(JSON.stringify(products, null, 2)),
+        ...(sha ? { sha } : {})
+      })
+    });
+
+    if (!putRes.ok) {
+      const errText = await putRes.text();
+      throw new Error(`GitHub update failed: ${errText}`);
     }
   },
 
@@ -120,32 +139,34 @@ export const GitHubStorageService = {
 
   async verifyConnection(token: string, repo: string): Promise<any> {
     try {
-      const { data } = await axios.post('/api/github/verify', { token, repo });
-      return data;
-    } catch (e: any) {
-      // Fallback client-side verification for static hosting
-      if (!token || !repo) {
-        return { success: false, hasToken: !!token, hasRepo: !!repo, error: 'Token and repo are required.' };
+      const res = await fetch('/api/github/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, repo })
+      });
+      if (res.ok) {
+        return await res.json();
       }
-      try {
-        const repoCheck = await axios.get(
-          `https://api.github.com/repos/${repo}`,
-          { headers: { Authorization: `token ${token}` } }
-        );
-        if (repoCheck.status === 200) {
-          return { hasToken: true, hasRepo: true, repoAccess: true, readSuccess: true, writeSuccess: true };
-        }
-      } catch (err: any) {
-        return { success: false, error: err.message || 'GitHub verification failed' };
+    } catch {}
+
+    // Fallback client-side verification for static hosting
+    if (!token || !repo) {
+      return { success: false, hasToken: !!token, hasRepo: !!repo, error: 'Token and repo are required.' };
+    }
+    try {
+      const repoCheck = await fetch(`https://api.github.com/repos/${repo}`, {
+        headers: { Authorization: `token ${token}` }
+      });
+      if (repoCheck.ok) {
+        return { hasToken: true, hasRepo: true, repoAccess: true, readSuccess: true, writeSuccess: true };
       }
-      return { success: false, error: 'Verification failed' };
+      return { success: false, error: 'Invalid repository or token.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'GitHub verification failed' };
     }
   }
 };
 
-// Base64 helper for browser / Vercel static environments
 function b58Encode(str: string): string {
   return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
 }
-
-
