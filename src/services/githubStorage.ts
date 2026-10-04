@@ -28,41 +28,42 @@ export const GitHubStorageService = {
   async fetchProducts(): Promise<Product[]> {
     // 1. Try static public products.json
     try {
-      const res = await axios.get('/products.json', { validateStatus: status => status === 200 });
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      const res = await axios.get('/products.json', { validateStatus: () => true });
+      if (res.status === 200 && res.data && Array.isArray(res.data) && res.data.length > 0) {
         return res.data;
       }
     } catch {}
 
     // 2. Try backend API proxy
     try {
-      const { data } = await axios.get('/api/github/products', { headers: this.getHeaders() });
-      if (Array.isArray(data) && data.length > 0) {
-        return data;
+      const res = await axios.get('/api/github/products', { headers: this.getHeaders(), validateStatus: () => true });
+      if (res.status === 200 && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
       }
-    } catch (e) {
-      // 3. Try direct GitHub raw URL fallback
-      try {
-        const { repo } = this.getConfig();
-        if (repo) {
-          const rawUrl = `https://raw.githubusercontent.com/${repo}/main/products.json`;
-          const rawRes = await axios.get(rawUrl);
-          if (rawRes.data && Array.isArray(rawRes.data)) {
-            return rawRes.data;
-          }
+    } catch {}
+
+    // 3. Try direct GitHub raw URL fallback
+    try {
+      const { repo } = this.getConfig();
+      if (repo) {
+        const rawUrl = `https://raw.githubusercontent.com/${repo}/main/products.json`;
+        const res = await axios.get(rawUrl, { validateStatus: () => true });
+        if (res.status === 200 && res.data && Array.isArray(res.data)) {
+          return res.data;
         }
-      } catch {}
-      try {
-        const { repo } = this.getConfig();
-        if (repo) {
-          const rawUrlMaster = `https://raw.githubusercontent.com/${repo}/master/products.json`;
-          const rawResMaster = await axios.get(rawUrlMaster);
-          if (rawResMaster.data && Array.isArray(rawResMaster.data)) {
-            return rawResMaster.data;
-          }
+      }
+    } catch {}
+
+    try {
+      const { repo } = this.getConfig();
+      if (repo) {
+        const rawUrlMaster = `https://raw.githubusercontent.com/${repo}/master/products.json`;
+        const res = await axios.get(rawUrlMaster, { validateStatus: () => true });
+        if (res.status === 200 && res.data && Array.isArray(res.data)) {
+          return res.data;
         }
-      } catch {}
-    }
+      }
+    } catch {}
 
     return [];
   },
