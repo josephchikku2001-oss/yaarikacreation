@@ -1,1 +1,14 @@
-
+[
+  {
+    "id": "verify-ping",
+    "title": "Sync Verification 2026-10-10T04:20:54.136Z",
+    "price": 99,
+    "category": "Fusion Wear",
+    "inStock": true,
+    "sizes": [
+      "Free Size"
+    ],
+    "imageUrl": "",
+    "description": "Verification test"
+  }
+]
